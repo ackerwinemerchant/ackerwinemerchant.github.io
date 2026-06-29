@@ -302,7 +302,7 @@
     </div>
   </div>
   <div class="akp-imgout akp-hide" id="akpImgOut">
-    <div class="akp-imgout-bar"><span>Press &amp; hold the image to save to Photos — or tap Save image.</span><button class="akp-link" id="akpImgOutClose">Done</button></div>
+    <div class="akp-imgout-bar"><span id="akpImgOutMsg">Press &amp; hold the image to save to Photos — or tap Save image.</span><button class="akp-link" id="akpImgOutClose">Done</button></div>
     <img id="akpImgOutImg" alt="poster">
     <div class="akp-imgout-actions"><button class="akp-btn akp-btn-primary" id="akpImgOutSave">Save image</button></div>
   </div>
@@ -321,6 +321,7 @@
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function priceParts(raw){ var m=String(raw).match(/^(\s*[^\d]*)(.*)$/); var cur=m?m[1].trim():"", amt=m?m[2]:String(raw); return '<span class="akp-cur">'+esc(cur)+'</span><span class="akp-amt">'+esc(amt)+'</span>'; }
   var IS_TOUCH = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth < 980;
+  var IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1);
   var toastEl, toastTimer;
   function toast(msg, kind){
     if(!toastEl){ toastEl=document.createElement("div"); document.querySelector(".akp-root").appendChild(toastEl); }
@@ -532,13 +533,26 @@
     outBlob=dataURLtoBlob(dataUrl);
     try{ outFile=new File([outBlob], outName, {type:"image/png"}); }catch(e){ outFile=null; }
     $("akpImgOutImg").src=dataUrl;
+    var canSheet = outFile && navigator.canShare && navigator.canShare({files:[outFile]});
+    if(IS_IOS){
+      $("akpImgOutSave").textContent = canSheet ? "Save to Photos" : "Press & hold image to save";
+      $("akpImgOutMsg").textContent = "Tap “Save to Photos”, then choose Save Image — or press & hold the image.";
+    } else {
+      $("akpImgOutSave").textContent = "Download image";
+      $("akpImgOutMsg").textContent = "Tap Download to save the image to your gallery.";
+    }
     $("akpImgOut").classList.remove("akp-hide");
   }
   $("akpImgOutClose").addEventListener("click", function(){ $("akpImgOut").classList.add("akp-hide"); $("akpImgOutImg").src=""; });
   $("akpImgOutSave").addEventListener("click", function(){
-    if(outFile && navigator.canShare && navigator.canShare({files:[outFile]})){
-      navigator.share({files:[outFile]}).catch(function(){});
-    } else if(outBlob){ triggerDownload(outBlob, outName); toast("Saved","ok"); }
+    var canSheet = outFile && navigator.canShare && navigator.canShare({files:[outFile]});
+    if(IS_IOS){
+      if(canSheet){ navigator.share({files:[outFile]}).catch(function(){}); }
+      else { toast("Press & hold the image to save","busy"); }
+    } else {
+      if(canSheet){ navigator.share({files:[outFile]}).catch(function(){ if(outBlob){ triggerDownload(outBlob, outName); } }); }
+      else if(outBlob){ triggerDownload(outBlob, outName); toast("Downloaded ✓","ok"); }
+    }
   });
   function saveImage(dataUrl, filename){
     if(!IS_TOUCH){ triggerDownload(dataURLtoBlob(dataUrl), filename); toast("Downloaded","ok"); return; }

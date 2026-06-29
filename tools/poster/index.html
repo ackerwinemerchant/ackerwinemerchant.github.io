@@ -143,7 +143,8 @@
 .akp-modal-search{padding:12px 18px 4px;}
 .akp-modal-search input{width:100%;}
 .akp-modal-status{padding:11px 18px;font-size:13px;color:var(--akp-muted);}
-.akp-modal-grid{padding:6px 18px 26px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.akp-modal-grid{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:8px 18px 20px;}
+.akp-modal-grid .akp-pcard{flex:0 0 78%;scroll-snap-align:center;}
 .akp-pcard{position:relative;border:1px solid var(--akp-line);border-radius:12px;overflow:hidden;cursor:pointer;background:#fbf9f7;}
 .akp-pcard:active{transform:scale(.98);}
 .akp-pcard img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#eceae8;}
@@ -159,7 +160,10 @@
 .akp-pcard-over .o-tag{display:inline-block;background:rgba(255,255,255,.24);border-radius:5px;padding:2px 6px;margin:0 4px 4px 0;font-size:10px;font-weight:700;}
 .akp-pcard-over .o-row{font-size:11px;opacity:.95;line-height:1.5;}
 @media(hover:none){.akp-pcard-over{display:none;}}
-@media(min-width:560px){.akp-modal-grid{grid-template-columns:1fr 1fr 1fr;}}
+@media(min-width:560px){.akp-modal-grid{display:grid;grid-template-columns:1fr 1fr;overflow:visible;gap:12px;padding:6px 18px 26px;}.akp-modal-grid .akp-pcard{flex:none;}}
+@media(min-width:820px){.akp-modal-grid{grid-template-columns:1fr 1fr 1fr;}}
+.akp-pcard-load{display:block;width:100%;border:none;background:var(--akp-wine);color:#fff;font-family:inherit;font-weight:800;font-size:13px;padding:12px;cursor:pointer;}
+.akp-pcard-load:active{background:var(--akp-wine-dark);}
 @media(min-width:980px){.akp-modal{align-items:center;}.akp-modal-card{border-radius:18px;}}
 .akp-toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(10px);background:rgba(33,33,33,.95);color:#fff;font-size:14px;font-weight:700;padding:12px 20px;border-radius:999px;z-index:60;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:86%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.32);}
 .akp-toast.akp-show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -169,6 +173,8 @@
 .akp-imgout-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px;color:#fff;font-size:13px;font-weight:700;line-height:1.3;}
 .akp-imgout-bar .akp-link{color:#fff;flex:0 0 auto;}
 .akp-imgout img{flex:1;min-height:0;width:100%;object-fit:contain;-webkit-touch-callout:default;touch-action:auto;}
+.akp-imgout-actions{display:flex;gap:10px;padding:14px 16px calc(16px + env(safe-area-inset-bottom));}
+.akp-imgout-actions .akp-btn{flex:1;}
 .akp-export-host{position:fixed;left:-99999px;top:0;pointer-events:none;}
 </style>
 </head>
@@ -296,8 +302,9 @@
     </div>
   </div>
   <div class="akp-imgout akp-hide" id="akpImgOut">
-    <div class="akp-imgout-bar"><span>Press &amp; hold the image, then “Save to Photos”.</span><button class="akp-link" id="akpImgOutClose">Done</button></div>
+    <div class="akp-imgout-bar"><span>Press &amp; hold the image to save to Photos — or tap Save image.</span><button class="akp-link" id="akpImgOutClose">Done</button></div>
     <img id="akpImgOutImg" alt="poster">
+    <div class="akp-imgout-actions"><button class="akp-btn akp-btn-primary" id="akpImgOutSave">Save image</button></div>
   </div>
   <div class="akp-export-host" id="akpExportHost"></div>
 </div>
@@ -519,20 +526,23 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
   }
-  function showImageOverlay(dataUrl){ $("akpImgOutImg").src=dataUrl; $("akpImgOut").classList.remove("akp-hide"); }
+  var outBlob=null, outFile=null, outName="poster.png";
+  function showImageOverlay(dataUrl, filename){
+    outName=filename||"poster.png";
+    outBlob=dataURLtoBlob(dataUrl);
+    try{ outFile=new File([outBlob], outName, {type:"image/png"}); }catch(e){ outFile=null; }
+    $("akpImgOutImg").src=dataUrl;
+    $("akpImgOut").classList.remove("akp-hide");
+  }
   $("akpImgOutClose").addEventListener("click", function(){ $("akpImgOut").classList.add("akp-hide"); $("akpImgOutImg").src=""; });
+  $("akpImgOutSave").addEventListener("click", function(){
+    if(outFile && navigator.canShare && navigator.canShare({files:[outFile]})){
+      navigator.share({files:[outFile]}).catch(function(){});
+    } else if(outBlob){ triggerDownload(outBlob, outName); toast("Saved","ok"); }
+  });
   function saveImage(dataUrl, filename){
-    var blob=dataURLtoBlob(dataUrl);
-    if(!IS_TOUCH){ triggerDownload(blob, filename); toast("Downloaded","ok"); return; }
-    var file=null; try{ file=new File([blob], filename, {type:"image/png"}); }catch(e){}
-    if(file && navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file]}).then(function(){}).catch(function(err){
-        if(err && err.name==="AbortError") return;   // user cancelled the sheet
-        showImageOverlay(dataUrl);                    // share blocked → show image to long-press save
-      });
-      return;
-    }
-    showImageOverlay(dataUrl);
+    if(!IS_TOUCH){ triggerDownload(dataURLtoBlob(dataUrl), filename); toast("Downloaded","ok"); return; }
+    showImageOverlay(dataUrl, filename);
   }
 
   $("akpDownload").addEventListener("click", function(){
@@ -594,7 +604,7 @@
     jsonp({ action:"list", q:q||"" }).then(function(res){
       if(res && res.status === "success"){
         if(!res.rows.length){ mstatus(q ? "No matches for “"+q+"”." : "No saved posters yet."); return; }
-        mstatus(res.count + (res.count===1?" poster":" posters") + " · tap to load, trash to delete.");
+        mstatus(res.count + (res.count===1?" poster":" posters") + " · swipe to browse, tap Load.");
         renderList(res.rows);
       } else { mstatus("Couldn't load: " + (res && res.message ? res.message : "error")); }
     }).catch(function(err){ mstatus("Couldn't load: " + err.message); });
@@ -625,8 +635,10 @@
         over+
         '<div class="akp-pcard-meta"><div class="akp-pcard-name">'+esc(r.name||"(untitled)")+'</div>'+
         '<div class="akp-pcard-sub">'+esc(sub)+(sub&&date?" · ":"")+date+'</div></div>'+
+        '<button class="akp-pcard-load" type="button">Load this poster</button>'+
         '<button class="akp-del" type="button" title="Delete">'+TRASH+'</button>';
       card.querySelector(".akp-del").addEventListener("click", function(ev){ ev.stopPropagation(); deletePoster(r.recordId, card); });
+      card.querySelector(".akp-pcard-load").addEventListener("click", function(ev){ ev.stopPropagation(); loadById(r.recordId); });
       card.addEventListener("click", function(){ loadById(r.recordId); });
       grid.appendChild(card);
     });

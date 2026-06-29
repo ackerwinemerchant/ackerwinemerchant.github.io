@@ -102,6 +102,20 @@
 .akp-footer{flex:0 0 auto;min-height:calc(64px*var(--akp-s));background:var(--akp-gold);color:#fff;display:flex;align-items:center;padding:calc(12px*var(--akp-s)) calc(46px*var(--akp-s));}
 .akp-footer-cn{font-size:calc(22px*var(--akp-s));font-weight:600;margin-right:calc(16px*var(--akp-s));}
 .akp-footer-en{font-size:calc(22px*var(--akp-s));font-weight:500;font-style:italic;}
+.akp-modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;}
+.akp-modal-card{background:#fff;width:100%;max-width:640px;max-height:88vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;overflow:hidden;}
+.akp-modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--akp-line);}
+.akp-modal-head b{font-size:16px;color:var(--akp-wine);}
+.akp-modal-status{padding:11px 18px;font-size:13px;color:var(--akp-muted);}
+.akp-modal-grid{padding:6px 18px 26px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.akp-pcard{border:1px solid var(--akp-line);border-radius:12px;overflow:hidden;cursor:pointer;background:#fbf9f7;}
+.akp-pcard:active{transform:scale(.98);}
+.akp-pcard img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#eceae8;}
+.akp-pcard-meta{padding:8px 10px;}
+.akp-pcard-name{font-size:12px;font-weight:700;color:#212121;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.akp-pcard-sub{font-size:11px;color:var(--akp-muted);margin-top:3px;}
+@media(min-width:560px){.akp-modal-grid{grid-template-columns:1fr 1fr 1fr;}}
+@media(min-width:980px){.akp-modal{align-items:center;}.akp-modal-card{border-radius:18px;}}
 .akp-export-host{position:fixed;left:-99999px;top:0;pointer-events:none;}
 </style>
 </head>
@@ -110,7 +124,10 @@
 <div class="akp-root">
   <div class="akp-topbar">
     <div class="akp-brand"><b>Acker</b><span>Poster Studio</span></div>
-    <button class="akp-link" id="akpReset">Reset</button>
+    <div style="display:flex;gap:16px;">
+      <button class="akp-link" id="akpLoad">Saved</button>
+      <button class="akp-link" id="akpReset">Reset</button>
+    </div>
   </div>
   <div class="akp-shell">
     <div class="akp-controls">
@@ -199,6 +216,13 @@
       </div>
     </div>
   </div>
+  <div class="akp-modal akp-hide" id="akpModal">
+    <div class="akp-modal-card">
+      <div class="akp-modal-head"><b>Saved posters</b><button class="akp-link" id="akpModalClose">Close</button></div>
+      <div class="akp-modal-status" id="akpModalStatus"></div>
+      <div class="akp-modal-grid" id="akpModalGrid"></div>
+    </div>
+  </div>
   <div class="akp-export-host" id="akpExportHost"></div>
 </div>
 <script>
@@ -215,6 +239,7 @@
   var poster = $("akpPoster"), rootEl = document.querySelector(".akp-root");
   var LOGO_DEFAULT = $("akpLogoTpl").innerHTML;
   var logoHTML = LOGO_DEFAULT;
+  var heroDataUrl = "", logoDataUrl = "";
   function logoBlock(sizeClass){ return '<span class="akp-logo '+sizeClass+'">'+logoHTML+'</span>'; }
   function renderRight(){
     var lang = state.lang, html = "";
@@ -266,12 +291,14 @@
     renderRight(); fitPreview();
   }
   $("akpVariantSeg").addEventListener("click", function(e){ var b=e.target.closest("button"); if(b) applyVariant(b.getAttribute("data-v")); });
-  function applyLang(l){
+  function applyLang(l, keepText){
     state.lang = l;
     if(l !== "en"){
-      $("akpPriceLabelCn").value = (l === "tc") ? "每瓶價格（港幣）" : "每瓶价格（港币）";
-      $("akpBadgeCn").value      = (l === "tc") ? "香港現貨" : "香港现货";
-      $("akpFooterCn").value     = "僅限18歲以上人士。請理性享用美酒";
+      if(!keepText){
+        $("akpPriceLabelCn").value = (l === "tc") ? "每瓶價格（港幣）" : "每瓶价格（港币）";
+        $("akpBadgeCn").value      = (l === "tc") ? "香港現貨" : "香港现货";
+        $("akpFooterCn").value     = "僅限18歲以上人士。請理性享用美酒";
+      }
       poster.style.setProperty("--akp-cjk", (l === "tc") ? "'Noto Sans TC'" : "'Noto Sans SC'");
     }
     toggle(".akp-cn-field", l !== "en");
@@ -291,20 +318,36 @@
   }
   $("akpSize").addEventListener("change", function(){ applySize(this.value); });
   function readImage(file, cb){ var r=new FileReader(); r.onload=function(){ cb(r.result); }; r.readAsDataURL(file); }
+  function downscale(dataUrl, maxDim, cb){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width, h=img.height, sc=Math.min(1, maxDim/Math.max(w,h));
+      if(sc>=1){ cb(dataUrl); return; }
+      var cw=Math.round(w*sc), ch=Math.round(h*sc);
+      var c=document.createElement("canvas"); c.width=cw; c.height=ch;
+      c.getContext("2d").drawImage(img,0,0,cw,ch);
+      cb(c.toDataURL("image/jpeg",0.9));
+    };
+    img.onerror=function(){ cb(dataUrl); };
+    img.src=dataUrl;
+  }
+  function showHero(data){
+    heroDataUrl = data;
+    $("akpHero").style.backgroundImage = "url('"+data+"')";
+    var em=$("akpHeroEmpty"); if(em) em.style.display="none";
+    $("akpHeroDrop").classList.add("akp-has");
+    $("akpHeroHint").innerHTML = "<img class='akp-thumb' src='"+data+"'>";
+  }
   $("akpHeroDrop").addEventListener("click", function(){ $("akpHeroFile").click(); });
   $("akpHeroFile").addEventListener("change", function(e){
     var f=e.target.files[0]; if(!f) return;
-    readImage(f, function(data){
-      $("akpHero").style.backgroundImage = "url('"+data+"')";
-      var em=$("akpHeroEmpty"); if(em) em.style.display="none";
-      $("akpHeroDrop").classList.add("akp-has");
-      $("akpHeroHint").innerHTML = "<img class='akp-thumb' src='"+data+"'>";
-    });
+    readImage(f, function(data){ downscale(data, 1600, showHero); });
   });
   $("akpLogoDrop").addEventListener("click", function(){ $("akpLogoFile").click(); });
   $("akpLogoFile").addEventListener("change", function(e){
     var f=e.target.files[0]; if(!f) return;
     readImage(f, function(data){
+      logoDataUrl = data;
       logoHTML = "<img class='akp-logo-img' src='"+data+"'>";
       $("akpLogoDrop").classList.add("akp-has");
       $("akpLogoHint").innerHTML = "<img class='akp-thumb' src='"+data+"'>";
@@ -349,12 +392,13 @@
   });
   function gather(img){
     return {
-      vintage:val("akpVintage"), name:val("akpName"), producer:val("akpSubtitle"),
-      priceLabel: state.lang==="en" ? val("akpPriceLabelEn") : (val("akpPriceLabelCn")+" "+val("akpPriceLabelEn")),
+      vintage:val("akpVintage"), name:val("akpName"), subtitle:val("akpSubtitle"),
+      priceLabelCn:val("akpPriceLabelCn"), priceLabelEn:val("akpPriceLabelEn"),
       price: state.variant==="price" ? val("akpPrice") : "",
-      badge: state.lang==="en" ? val("akpBadgeEn") : (val("akpBadgeCn")+" / "+val("akpBadgeEn")),
+      badgeCn:val("akpBadgeCn"), badgeEn:val("akpBadgeEn"),
       footerCn:val("akpFooterCn"), footerEn:val("akpFooterEn"),
-      accent:"#801747", size:curW+"x"+curH, variant:state.variant, lang:state.lang, posterImage:img||""
+      variant:state.variant, lang:state.lang, size:curW+"x"+curH, accent:"#801747",
+      heroImage:heroDataUrl||"", logoImage:logoDataUrl||"", posterImage:img||""
     };
   }
   $("akpSave").addEventListener("click", function(){
@@ -367,6 +411,81 @@
       .catch(function(e){ setStatus("Save failed: "+e,"err"); });
   });
   $("akpReset").addEventListener("click", function(){ if(confirm("Reset everything?")) location.reload(); });
+
+  /* ---- Saved gallery (load a past poster back into the editor) ---- */
+  function jsonp(params){
+    return new Promise(function(resolve, reject){
+      var cb = "__akp_cb_" + Date.now() + "_" + Math.floor(Math.random()*1e4);
+      var s = document.createElement("script");
+      var timer = setTimeout(function(){ cleanup(); reject(new Error("timeout")); }, 25000);
+      function cleanup(){ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(s.parentNode) s.parentNode.removeChild(s); clearTimeout(timer); }
+      window[cb] = function(data){ cleanup(); resolve(data); };
+      var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+"="+encodeURIComponent(params[k]); }).join("&");
+      s.src = CONFIG.ENDPOINT + "?" + qs + "&callback=" + cb;
+      s.onerror = function(){ cleanup(); reject(new Error("network")); };
+      document.body.appendChild(s);
+    });
+  }
+  function mstatus(t){ $("akpModalStatus").textContent = t || ""; }
+  function openLoader(){
+    $("akpModal").classList.remove("akp-hide");
+    $("akpModalGrid").innerHTML = "";
+    mstatus("Loading saved posters…");
+    jsonp({ action:"list" }).then(function(res){
+      if(res && res.status === "success"){
+        if(!res.rows.length){ mstatus("No saved posters yet."); return; }
+        mstatus("Tap a poster to load it back in.");
+        renderList(res.rows);
+      } else { mstatus("Couldn't load: " + (res && res.message ? res.message : "error")); }
+    }).catch(function(err){ mstatus("Couldn't load: " + err.message); });
+  }
+  function closeLoader(){ $("akpModal").classList.add("akp-hide"); }
+  function renderList(rows){
+    var grid = $("akpModalGrid"); grid.innerHTML = "";
+    rows.forEach(function(r){
+      var card = document.createElement("div"); card.className = "akp-pcard";
+      var thumb = r.posterId ? ("https://drive.google.com/thumbnail?id="+r.posterId+"&sz=w400") : "";
+      var date = r.ts ? new Date(r.ts).toLocaleDateString() : "";
+      var sub  = (r.variant === "noprice") ? "No price" : (r.price || "");
+      card.innerHTML = '<img loading="lazy" src="'+thumb+'" onerror="this.style.opacity=0.2">'+
+        '<div class="akp-pcard-meta"><div class="akp-pcard-name">'+esc(r.name||"(untitled)")+'</div>'+
+        '<div class="akp-pcard-sub">'+esc(sub)+(sub&&date?" · ":"")+date+'</div></div>';
+      card.addEventListener("click", function(){ loadById(r.recordId); });
+      grid.appendChild(card);
+    });
+  }
+  function loadById(id){
+    if(!id){ mstatus("This item has no editable record."); return; }
+    mstatus("Loading…");
+    jsonp({ action:"get", id:id }).then(function(res){
+      if(res && res.status === "success" && res.record){ loadRecord(res.record); closeLoader(); }
+      else { mstatus("Couldn't open: " + (res && res.message ? res.message : "error")); }
+    }).catch(function(err){ mstatus("Couldn't open: " + err.message); });
+  }
+  function sizeKeyFromDims(dims){ for(var k in SIZES){ if(SIZES[k].w+"x"+SIZES[k].h === dims) return k; } return "default"; }
+  function loadRecord(r){
+    $("akpVintage").value      = r.vintage||"";
+    $("akpName").value         = r.name||"";
+    $("akpSubtitle").value     = r.subtitle||"";
+    $("akpPrice").value        = r.price||"";
+    $("akpPriceLabelCn").value = r.priceLabelCn||"";
+    $("akpPriceLabelEn").value = r.priceLabelEn||"";
+    $("akpBadgeCn").value      = r.badgeCn||"";
+    $("akpBadgeEn").value      = r.badgeEn||"";
+    $("akpFooterCn").value     = r.footerCn||"";
+    $("akpFooterEn").value     = r.footerEn||"";
+    if(r.heroImage){ showHero(r.heroImage); }
+    if(r.logoImage){ logoDataUrl=r.logoImage; logoHTML="<img class='akp-logo-img' src='"+r.logoImage+"'>"; $("akpLogoDrop").classList.add("akp-has"); $("akpLogoHint").innerHTML="<img class='akp-thumb' src='"+r.logoImage+"'>"; }
+    else { logoDataUrl=""; logoHTML=LOGO_DEFAULT; }
+    var szKey = sizeKeyFromDims(r.size||"1242x1660"); $("akpSize").value = szKey; applySize(szKey);
+    setVintage(val("akpVintage")); setIf("pName", val("akpName")); setSubtitle(val("akpSubtitle"));
+    applyVariant(r.variant||"price");
+    applyLang(r.lang||"sc", true);
+    refreshFooter();
+  }
+  $("akpLoad").addEventListener("click", openLoader);
+  $("akpModalClose").addEventListener("click", closeLoader);
+  $("akpModal").addEventListener("click", function(e){ if(e.target === this) closeLoader(); });
   $("akpBackendNote").textContent = "Cloud save is connected to your Apps Script.";
   setVintage(val("akpVintage"));
   setIf("pName", val("akpName"));

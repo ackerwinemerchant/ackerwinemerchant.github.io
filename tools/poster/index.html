@@ -43,6 +43,16 @@
 .akp-dims{text-align:center;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--akp-muted);text-transform:uppercase;margin-bottom:8px;}
 .akp-frame{display:flex;justify-content:center;}
 .akp-canvas{overflow:hidden;position:relative;border-radius:4px;box-shadow:0 6px 22px rgba(0,0,0,.12);}
+.akp-pen{position:absolute;top:8px;right:8px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.93);box-shadow:0 1px 6px rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;cursor:pointer;color:var(--akp-wine);z-index:4;}
+.akp-pen svg{width:17px;height:17px;}
+.akp-pen.akp-on{background:var(--akp-wine);color:#fff;}
+.akp-canvas.akp-has-hero:hover .akp-pen{display:flex;}
+.akp-canvas.akp-editing .akp-pen{display:flex;}
+@media(hover:none){.akp-canvas.akp-has-hero .akp-pen{display:flex;opacity:.95;}}
+.akp-canvas.akp-editing{cursor:move;touch-action:none;}
+.akp-canvas.akp-editing .akp-poster{outline:2px solid var(--akp-wine);outline-offset:-2px;}
+.akp-pos-hint{position:absolute;left:8px;right:54px;top:8px;background:rgba(33,33,33,.84);color:#fff;font-size:11px;font-weight:600;line-height:1.3;padding:7px 10px;border-radius:8px;display:none;z-index:4;}
+.akp-canvas.akp-editing .akp-pos-hint{display:block;}
 .akp-field{margin-bottom:15px;}
 .akp-label{display:block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--akp-muted);margin-bottom:6px;}
 .akp-input,.akp-textarea,.akp-select{width:100%;border:1px solid var(--akp-line);border-radius:11px;padding:13px;font-size:16px;font-family:inherit;color:var(--akp-ink);background:#fbf9f7;}
@@ -64,6 +74,7 @@
 .akp-seg button.akp-on{background:var(--akp-wine);color:#fff;}
 .akp-drop{border:1.5px dashed var(--akp-line);border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fbf9f7;}
 .akp-drop:active{border-color:var(--akp-wine);}
+.akp-drop.akp-drag{border-color:var(--akp-wine);background:#fff;box-shadow:0 0 0 3px rgba(128,23,71,.14);}
 .akp-drop.akp-has{padding:8px;}
 .akp-drop-hint{font-size:13px;color:var(--akp-muted);line-height:1.5;}
 .akp-drop-hint b{color:var(--akp-wine);}
@@ -169,7 +180,7 @@
       <div class="akp-panel" data-panel="details">
         <div class="akp-section">Bottle image</div>
         <div class="akp-field">
-          <div class="akp-drop" id="akpHeroDrop"><div class="akp-drop-hint" id="akpHeroHint"><b>Tap to upload</b><br>the product photo</div></div>
+          <div class="akp-drop" id="akpHeroDrop"><div class="akp-drop-hint" id="akpHeroHint"><b>Tap or drag</b><br>a product photo here</div></div>
           <input type="file" id="akpHeroFile" accept="image/*" hidden>
         </div>
         <div class="akp-section">Wine details</div>
@@ -220,7 +231,7 @@
         </div>
         <div class="akp-section">Logo &amp; footer</div>
         <div class="akp-field">
-          <div class="akp-drop" id="akpLogoDrop"><div class="akp-drop-hint" id="akpLogoHint">Acker signature logo loaded.<br><b>Tap to replace</b> (optional)</div></div>
+          <div class="akp-drop" id="akpLogoDrop"><div class="akp-drop-hint" id="akpLogoHint">Acker signature logo loaded.<br><b>Tap or drag</b> to replace (optional)</div></div>
           <input type="file" id="akpLogoFile" accept="image/*" hidden>
         </div>
         <div class="akp-field akp-cn-field"><label class="akp-label" for="akpFooterCn">Footer (中)</label><input class="akp-input" id="akpFooterCn" value="僅限18歲以上人士。請理性享用美酒"></div>
@@ -255,6 +266,8 @@
               <span class="akp-footer-cn" id="pFootCn"></span><span class="akp-footer-en" id="pFootEn"></span>
             </div>
           </div>
+          <button class="akp-pen akp-noexport" id="akpPen" type="button" title="Adjust photo position" aria-label="Adjust photo position"></button>
+          <div class="akp-pos-hint akp-noexport" id="akpPosHint">Drag the photo to reposition · tap ✓ when done</div>
         </div>
       </div>
     </div>
@@ -285,6 +298,7 @@
   var LOGO_DEFAULT = $("akpLogoTpl").innerHTML;
   var logoHTML = LOGO_DEFAULT;
   var heroDataUrl = "", logoDataUrl = "";
+  var heroPosX = 50, heroPosY = 50;
   function logoBlock(sizeClass){ return '<span class="akp-logo '+sizeClass+'">'+logoHTML+'</span>'; }
   function renderRight(){
     var lang = state.lang, html = "";
@@ -376,29 +390,67 @@
     img.onerror=function(){ cb(dataUrl); };
     img.src=dataUrl;
   }
+  function applyHeroPos(){ var h=$("akpHero"); if(h) h.style.backgroundPosition = heroPosX+"% "+heroPosY+"%"; }
   function showHero(data){
     heroDataUrl = data;
     $("akpHero").style.backgroundImage = "url('"+data+"')";
     var em=$("akpHeroEmpty"); if(em) em.style.display="none";
     $("akpHeroDrop").classList.add("akp-has");
     $("akpHeroHint").innerHTML = "<img class='akp-thumb' src='"+data+"'>";
+    $("akpCanvas").classList.add("akp-has-hero");
+    heroPosX = 50; heroPosY = 50; applyHeroPos();
   }
+  function handleHeroFile(f){ if(!f || f.type.indexOf("image")!==0) return; readImage(f, function(data){ downscale(data, 1600, showHero); }); }
+  function handleLogoFile(f){ if(!f || f.type.indexOf("image")!==0) return; readImage(f, function(data){ logoDataUrl=data; logoHTML="<img class='akp-logo-img' src='"+data+"'>"; $("akpLogoDrop").classList.add("akp-has"); $("akpLogoHint").innerHTML="<img class='akp-thumb' src='"+data+"'>"; renderRight(); }); }
+  function wireDrop(zone, handler){
+    ["dragenter","dragover"].forEach(function(ev){ zone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); zone.classList.add("akp-drag"); }); });
+    ["dragleave","dragend","drop"].forEach(function(ev){ zone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); zone.classList.remove("akp-drag"); }); });
+    zone.addEventListener("drop", function(e){ var dt=e.dataTransfer; handler(dt&&dt.files&&dt.files.length?dt.files[0]:null); });
+  }
+  // stop the browser opening an image if it's dropped outside a zone (but keep text-drop working)
+  function hasFiles(e){ var t=e.dataTransfer&&e.dataTransfer.types; return t && Array.prototype.indexOf.call(t, "Files")>=0; }
+  window.addEventListener("dragover", function(e){ if(hasFiles(e)) e.preventDefault(); });
+  window.addEventListener("drop", function(e){ if(hasFiles(e)) e.preventDefault(); });
+
   $("akpHeroDrop").addEventListener("click", function(){ $("akpHeroFile").click(); });
-  $("akpHeroFile").addEventListener("change", function(e){
-    var f=e.target.files[0]; if(!f) return;
-    readImage(f, function(data){ downscale(data, 1600, showHero); });
-  });
+  $("akpHeroFile").addEventListener("change", function(e){ handleHeroFile(e.target.files[0]); });
+  wireDrop($("akpHeroDrop"), handleHeroFile);
   $("akpLogoDrop").addEventListener("click", function(){ $("akpLogoFile").click(); });
-  $("akpLogoFile").addEventListener("change", function(e){
-    var f=e.target.files[0]; if(!f) return;
-    readImage(f, function(data){
-      logoDataUrl = data;
-      logoHTML = "<img class='akp-logo-img' src='"+data+"'>";
-      $("akpLogoDrop").classList.add("akp-has");
-      $("akpLogoHint").innerHTML = "<img class='akp-thumb' src='"+data+"'>";
-      renderRight();
+  $("akpLogoFile").addEventListener("change", function(e){ handleLogoFile(e.target.files[0]); });
+  wireDrop($("akpLogoDrop"), handleLogoFile);
+
+  /* ---- adjust bottle-photo position: pen → drag → lock ---- */
+  var PEN_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+  var CHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var editing=false, dragging=false, sX=0, sY=0, sPX=50, sPY=50;
+  $("akpPen").innerHTML = PEN_SVG;
+  function setEditing(on){
+    editing=on;
+    $("akpCanvas").classList.toggle("akp-editing", on);
+    $("akpPen").classList.toggle("akp-on", on);
+    $("akpPen").innerHTML = on ? CHECK_SVG : PEN_SVG;
+  }
+  $("akpPen").addEventListener("click", function(e){ e.stopPropagation(); setEditing(!editing); });
+  (function(){
+    var c=$("akpCanvas");
+    c.addEventListener("pointerdown", function(e){
+      if(!editing || (e.target && e.target.closest && e.target.closest(".akp-pen"))) return;
+      dragging=true; sX=e.clientX; sY=e.clientY; sPX=heroPosX; sPY=heroPosY;
+      try{ c.setPointerCapture(e.pointerId); }catch(_){}
+      e.preventDefault();
     });
-  });
+    c.addEventListener("pointermove", function(e){
+      if(!dragging) return;
+      var rect=c.getBoundingClientRect();
+      var dxP=((e.clientX-sX)/rect.width)*100, dyP=((e.clientY-sY)/rect.height)*100;
+      heroPosX=Math.max(0,Math.min(100, sPX - dxP));
+      heroPosY=Math.max(0,Math.min(100, sPY - dyP));
+      applyHeroPos();
+    });
+    function end(e){ if(dragging){ dragging=false; try{ c.releasePointerCapture(e.pointerId);}catch(_){} } }
+    c.addEventListener("pointerup", end);
+    c.addEventListener("pointercancel", end);
+  })();
   function fitPreview(){
     var frame = $("akpFrame"), canvas = $("akpCanvas");
     var isMobile = window.innerWidth < 980;
@@ -445,7 +497,7 @@
       badgeCn:val("akpBadgeCn"), badgeEn:val("akpBadgeEn"),
       footerCn:val("akpFooterCn"), footerEn:val("akpFooterEn"),
       variant:state.variant, lang:state.lang, size:curW+"x"+curH, accent:"#801747",
-      heroImage:heroDataUrl||"", logoImage:logoDataUrl||"", recordId:currentRecordId||"", posterImage:img||""
+      heroImage:heroDataUrl||"", logoImage:logoDataUrl||"", heroPosX:heroPosX, heroPosY:heroPosY, recordId:currentRecordId||"", posterImage:img||""
     };
   }
   $("akpSave").addEventListener("click", function(){
@@ -548,6 +600,7 @@
     $("akpFooterCn").value     = r.footerCn||"";
     $("akpFooterEn").value     = r.footerEn||"";
     if(r.heroImage){ showHero(r.heroImage); }
+    heroPosX = (r.heroPosX==null?50:Number(r.heroPosX)); heroPosY = (r.heroPosY==null?50:Number(r.heroPosY)); applyHeroPos();
     if(r.logoImage){ logoDataUrl=r.logoImage; logoHTML="<img class='akp-logo-img' src='"+r.logoImage+"'>"; $("akpLogoDrop").classList.add("akp-has"); $("akpLogoHint").innerHTML="<img class='akp-thumb' src='"+r.logoImage+"'>"; }
     else { logoDataUrl=""; logoHTML=LOGO_DEFAULT; }
     var szKey = sizeKeyFromDims(r.size||"1242x1660"); $("akpSize").value = szKey; applySize(szKey);

@@ -15,16 +15,16 @@
   --akp-black:#212121;--akp-gold:#BEAD85;--akp-grey:#F2F2F2;
   --akp-ink:#212121;--akp-paper:#fff;--akp-bg:#f4f1ee;--akp-line:#e4ddd6;--akp-muted:#8a817a;
   --akp-latin:'Avenir Next','Avenir','Mulish','Nunito Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
-  font-family:var(--akp-latin);color:var(--akp-ink);background:var(--akp-bg);min-height:100vh;
+  font-family:var(--akp-latin);color:var(--akp-ink);background:var(--akp-bg);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;
 }
-.akp-topbar{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:var(--akp-paper);border-bottom:1px solid var(--akp-line);position:sticky;top:0;z-index:30;}
+.akp-topbar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:13px 18px;background:var(--akp-paper);border-bottom:1px solid var(--akp-line);z-index:30;}
 .akp-brand{display:flex;align-items:baseline;gap:9px;}
 .akp-brand b{font-size:17px;letter-spacing:.02em;color:var(--akp-wine);}
 .akp-brand span{font-size:11px;letter-spacing:.16em;color:var(--akp-muted);text-transform:uppercase;font-weight:700;}
 .akp-link{font-size:13px;font-weight:700;color:var(--akp-muted);background:none;border:none;cursor:pointer;}
-.akp-shell{display:grid;grid-template-columns:1fr;}
-.akp-controls{padding:16px 16px 130px;background:var(--akp-paper);}
-.akp-preview-pane{order:-1;position:sticky;top:51px;z-index:20;background:var(--akp-bg);padding:12px;box-shadow:0 3px 10px rgba(0,0,0,.05);}
+.akp-shell{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+.akp-controls{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 100px;background:var(--akp-paper);}
+.akp-preview-pane{order:-1;flex:0 0 auto;background:var(--akp-bg);padding:10px 12px;box-shadow:0 3px 10px rgba(0,0,0,.05);}
 .akp-dims{text-align:center;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--akp-muted);text-transform:uppercase;margin-bottom:8px;}
 .akp-frame{display:flex;justify-content:center;}
 .akp-canvas{overflow:hidden;position:relative;border-radius:4px;box-shadow:0 6px 22px rgba(0,0,0,.12);}
@@ -35,8 +35,14 @@
 .akp-textarea{resize:vertical;min-height:60px;line-height:1.35;}
 .akp-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .akp-help{font-size:12px;color:var(--akp-muted);margin-top:6px;line-height:1.45;}
+.akp-tabsbar{position:sticky;top:0;z-index:6;background:var(--akp-paper);padding:12px 0 10px;}
+.akp-tabs{display:flex;gap:6px;background:#efe9e3;border-radius:12px;padding:5px;}
+.akp-tabs button{flex:1;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:800;color:var(--akp-muted);padding:11px 6px;border-radius:9px;cursor:pointer;}
+.akp-tabs button.akp-on{background:#fff;color:var(--akp-wine);box-shadow:0 1px 5px rgba(0,0,0,.1);}
+.akp-panel{animation:akpfade .18s ease;}
+@keyframes akpfade{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
 .akp-section{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--akp-wine);margin:22px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--akp-line);}
-.akp-section:first-child{margin-top:0;}
+.akp-section:first-child{margin-top:4px;}
 .akp-seg{display:flex;border:1px solid var(--akp-line);border-radius:11px;overflow:hidden;}
 .akp-seg button{flex:1;font-family:inherit;font-size:13px;font-weight:700;padding:12px 8px;background:#fbf9f7;border:none;border-right:1px solid var(--akp-line);cursor:pointer;color:var(--akp-muted);}
 .akp-seg button:last-child{border-right:none;}
@@ -64,10 +70,12 @@
 .akp-note{font-size:12px;color:var(--akp-muted);line-height:1.5;margin-top:8px;}
 .akp-hide{display:none !important;}
 @media(min-width:980px){
-  .akp-shell{grid-template-columns:430px 1fr;align-items:start;}
-  .akp-controls{padding:24px;min-height:calc(100vh - 56px);border-right:1px solid var(--akp-line);}
-  .akp-preview-pane{order:0;position:sticky;top:80px;padding:28px;box-shadow:none;background:transparent;}
+  .akp-root{height:auto;display:block;overflow:visible;}
+  .akp-shell{flex:none;display:grid;grid-template-columns:430px 1fr;align-items:start;}
+  .akp-controls{flex:none;overflow:visible;padding:0 24px 24px;min-height:calc(100vh - 56px);border-right:1px solid var(--akp-line);}
+  .akp-preview-pane{order:0;flex:none;position:sticky;top:80px;padding:28px;box-shadow:none;background:transparent;}
   .akp-actionbar{position:static;border-top:none;background:transparent;padding:18px 0 0;}
+  .akp-tabsbar{background:var(--akp-paper);}
 }
 .akp-poster{
   --akp-w:1242px;--akp-h:1660px;--akp-s:1;--akp-cjk:'Noto Sans SC';
@@ -131,58 +139,74 @@
   </div>
   <div class="akp-shell">
     <div class="akp-controls">
-      <div class="akp-section">Layout</div>
-      <div class="akp-field">
-        <div class="akp-seg" id="akpVariantSeg">
-          <button data-v="price" class="akp-on">With price</button>
-          <button data-v="noprice">No price</button>
+      <div class="akp-tabsbar">
+        <div class="akp-tabs" id="akpTabs">
+          <button data-tab="details" class="akp-on">Details</button>
+          <button data-tab="price">Price</button>
+          <button data-tab="format">Format</button>
         </div>
       </div>
-      <div class="akp-field">
-        <label class="akp-label">Language</label>
-        <div class="akp-seg" id="akpLangSeg">
-          <button data-l="sc" class="akp-on">简体 + EN</button>
-          <button data-l="tc">繁體 + EN</button>
-          <button data-l="en">English</button>
+
+      <div class="akp-panel" data-panel="details">
+        <div class="akp-section">Bottle image</div>
+        <div class="akp-field">
+          <div class="akp-drop" id="akpHeroDrop"><div class="akp-drop-hint" id="akpHeroHint"><b>Tap to upload</b><br>the product photo</div></div>
+          <input type="file" id="akpHeroFile" accept="image/*" hidden>
+        </div>
+        <div class="akp-section">Wine details</div>
+        <div class="akp-field"><label class="akp-label" for="akpVintage">Vintage</label><input class="akp-input" id="akpVintage" value="2017 &amp; 2018"></div>
+        <div class="akp-field"><label class="akp-label" for="akpName">Wine name (bold)</label><textarea class="akp-textarea" id="akpName">Dugat-Py Chambertin</textarea></div>
+        <div class="akp-field"><label class="akp-label" for="akpSubtitle">Subtitle (regular)</label><input class="akp-input" id="akpSubtitle" value="Vieilles Vignes"></div>
+      </div>
+
+      <div class="akp-panel akp-hide" data-panel="price">
+        <div class="akp-section">Layout</div>
+        <div class="akp-field">
+          <div class="akp-seg" id="akpVariantSeg">
+            <button data-v="price" class="akp-on">With price</button>
+            <button data-v="noprice">No price</button>
+          </div>
+        </div>
+        <div class="akp-section akp-price-field">Price</div>
+        <div class="akp-field akp-price-field"><label class="akp-label" for="akpPrice">Price</label><input class="akp-input" id="akpPrice" value="$22,000"></div>
+        <div class="akp-row2 akp-price-field">
+          <div class="akp-field akp-cn-field"><label class="akp-label" for="akpPriceLabelCn">Price label (中)</label><input class="akp-input" id="akpPriceLabelCn" value="每瓶价格（港币）"></div>
+          <div class="akp-field"><label class="akp-label" for="akpPriceLabelEn">Price label (EN)</label><input class="akp-input" id="akpPriceLabelEn" value="HKD/Bottle"></div>
+        </div>
+        <div class="akp-section">Stock badge</div>
+        <div class="akp-row2">
+          <div class="akp-field akp-cn-field"><label class="akp-label" for="akpBadgeCn">Badge (中)</label><input class="akp-input" id="akpBadgeCn" value="香港现货"></div>
+          <div class="akp-field"><label class="akp-label" for="akpBadgeEn">Badge (EN)</label><input class="akp-input" id="akpBadgeEn" value="Hong Kong Stock"></div>
         </div>
       </div>
-      <div class="akp-field">
-        <label class="akp-label" for="akpSize">Output size</label>
-        <select class="akp-select" id="akpSize">
-          <option value="default" selected>Acker / RED — 1242 × 1660</option>
-          <option value="whatsapp">WhatsApp send — 1080 × 1440</option>
-          <option value="status">WhatsApp Status / Story — 1080 × 1920</option>
-          <option value="ig">Instagram portrait — 1080 × 1350</option>
-          <option value="square">Square — 1080 × 1080</option>
-        </select>
+
+      <div class="akp-panel akp-hide" data-panel="format">
+        <div class="akp-section">Language</div>
+        <div class="akp-field">
+          <div class="akp-seg" id="akpLangSeg">
+            <button data-l="sc" class="akp-on">简体 + EN</button>
+            <button data-l="tc">繁體 + EN</button>
+            <button data-l="en">English</button>
+          </div>
+        </div>
+        <div class="akp-section">Output size</div>
+        <div class="akp-field">
+          <select class="akp-select" id="akpSize">
+            <option value="default" selected>Acker / RED — 1242 × 1660</option>
+            <option value="whatsapp">WhatsApp send — 1080 × 1440</option>
+            <option value="status">WhatsApp Status / Story — 1080 × 1920</option>
+            <option value="ig">Instagram portrait — 1080 × 1350</option>
+            <option value="square">Square — 1080 × 1080</option>
+          </select>
+        </div>
+        <div class="akp-section">Logo &amp; footer</div>
+        <div class="akp-field">
+          <div class="akp-drop" id="akpLogoDrop"><div class="akp-drop-hint" id="akpLogoHint">Acker signature logo loaded.<br><b>Tap to replace</b> (optional)</div></div>
+          <input type="file" id="akpLogoFile" accept="image/*" hidden>
+        </div>
+        <div class="akp-field akp-cn-field"><label class="akp-label" for="akpFooterCn">Footer (中)</label><input class="akp-input" id="akpFooterCn" value="僅限18歲以上人士。請理性享用美酒"></div>
+        <div class="akp-field"><label class="akp-label" for="akpFooterEn">Footer (EN)</label><input class="akp-input" id="akpFooterEn" value="For ages 18 and above only. Please enjoy fine wine responsibly."></div>
       </div>
-      <div class="akp-section">Bottle image</div>
-      <div class="akp-field">
-        <div class="akp-drop" id="akpHeroDrop"><div class="akp-drop-hint" id="akpHeroHint"><b>Tap to upload</b><br>the product photo</div></div>
-        <input type="file" id="akpHeroFile" accept="image/*" hidden>
-      </div>
-      <div class="akp-section">Wine details</div>
-      <div class="akp-field"><label class="akp-label" for="akpVintage">Vintage</label><input class="akp-input" id="akpVintage" value="2017 &amp; 2018"></div>
-      <div class="akp-field"><label class="akp-label" for="akpName">Wine name (bold)</label><textarea class="akp-textarea" id="akpName">Dugat-Py Chambertin</textarea></div>
-      <div class="akp-field"><label class="akp-label" for="akpSubtitle">Subtitle (regular)</label><input class="akp-input" id="akpSubtitle" value="Vieilles Vignes"></div>
-      <div class="akp-section akp-price-field">Price</div>
-      <div class="akp-field akp-price-field"><label class="akp-label" for="akpPrice">Price</label><input class="akp-input" id="akpPrice" value="$22,000"></div>
-      <div class="akp-row2 akp-price-field">
-        <div class="akp-field akp-cn-field"><label class="akp-label" for="akpPriceLabelCn">Price label (中)</label><input class="akp-input" id="akpPriceLabelCn" value="每瓶价格（港币）"></div>
-        <div class="akp-field"><label class="akp-label" for="akpPriceLabelEn">Price label (EN)</label><input class="akp-input" id="akpPriceLabelEn" value="HKD/Bottle"></div>
-      </div>
-      <div class="akp-section">Stock badge</div>
-      <div class="akp-row2">
-        <div class="akp-field akp-cn-field"><label class="akp-label" for="akpBadgeCn">Badge (中)</label><input class="akp-input" id="akpBadgeCn" value="香港现货"></div>
-        <div class="akp-field"><label class="akp-label" for="akpBadgeEn">Badge (EN)</label><input class="akp-input" id="akpBadgeEn" value="Hong Kong Stock"></div>
-      </div>
-      <div class="akp-section">Logo &amp; footer</div>
-      <div class="akp-field">
-        <div class="akp-drop" id="akpLogoDrop"><div class="akp-drop-hint" id="akpLogoHint">Acker signature logo loaded.<br><b>Tap to replace</b> (optional)</div></div>
-        <input type="file" id="akpLogoFile" accept="image/*" hidden>
-      </div>
-      <div class="akp-field akp-cn-field"><label class="akp-label" for="akpFooterCn">Footer (中)</label><input class="akp-input" id="akpFooterCn" value="僅限18歲以上人士。請理性享用美酒"></div>
-      <div class="akp-field"><label class="akp-label" for="akpFooterEn">Footer (EN)</label><input class="akp-input" id="akpFooterEn" value="For ages 18 and above only. Please enjoy fine wine responsibly."></div>
       <div class="akp-actionbar">
         <button class="akp-btn akp-btn-ghost" id="akpSave">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save
@@ -356,11 +380,13 @@
   });
   function fitPreview(){
     var frame = $("akpFrame"), canvas = $("akpCanvas");
-    var availW = frame.clientWidth;
-    var capH = (window.innerWidth < 980) ? window.innerHeight * 0.46 : Infinity;
-    var scale = Math.min(availW/curW, capH/curH);
-    canvas.style.width = (curW*scale)+"px";
-    canvas.style.height = (curH*scale)+"px";
+    var isMobile = window.innerWidth < 980;
+    var maxW = isMobile ? frame.clientWidth : Math.min(frame.clientWidth, 440);
+    var maxH = isMobile ? (window.innerHeight * 0.40) : (window.innerHeight - 190);
+    var scale = Math.min(maxW/curW, maxH/curH);
+    if(scale <= 0) scale = 0.1;
+    canvas.style.width = Math.round(curW*scale)+"px";
+    canvas.style.height = Math.round(curH*scale)+"px";
     poster.style.transform = "scale("+scale+")";
   }
   window.addEventListener("resize", fitPreview);
@@ -411,6 +437,15 @@
       .catch(function(e){ setStatus("Save failed: "+e,"err"); });
   });
   $("akpReset").addEventListener("click", function(){ if(confirm("Reset everything?")) location.reload(); });
+
+  /* ---- tabbed panels ---- */
+  $("akpTabs").addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    var t = b.getAttribute("data-tab");
+    Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle("akp-on", x === b); });
+    Array.prototype.forEach.call(document.querySelectorAll(".akp-panel"), function(p){ p.classList.toggle("akp-hide", p.getAttribute("data-panel") !== t); });
+    var c = document.querySelector(".akp-controls"); if(c) c.scrollTop = 0;
+  });
 
   /* ---- Saved gallery (load a past poster back into the editor) ---- */
   function jsonp(params){

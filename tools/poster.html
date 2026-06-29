@@ -22,6 +22,9 @@
 .akp-brand b{font-size:17px;letter-spacing:.02em;color:var(--akp-wine);}
 .akp-brand span{font-size:11px;letter-spacing:.16em;color:var(--akp-muted);text-transform:uppercase;font-weight:700;}
 .akp-link{font-size:13px;font-weight:700;color:var(--akp-muted);background:none;border:none;cursor:pointer;}
+.akp-pill{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:800;color:#fff;background:var(--akp-wine);border:none;border-radius:999px;padding:9px 15px;cursor:pointer;}
+.akp-pill:active{transform:translateY(1px);}
+.akp-pill svg{width:15px;height:15px;}
 .akp-shell{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
 .akp-controls{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 100px;background:var(--akp-paper);}
 .akp-preview-pane{order:-1;flex:0 0 auto;background:var(--akp-bg);padding:10px 12px;box-shadow:0 3px 10px rgba(0,0,0,.05);}
@@ -132,8 +135,8 @@
 <div class="akp-root">
   <div class="akp-topbar">
     <div class="akp-brand"><b>Acker</b><span>Poster Studio</span></div>
-    <div style="display:flex;gap:16px;">
-      <button class="akp-link" id="akpLoad">Saved</button>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button class="akp-pill" id="akpLoad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Saved</button>
       <button class="akp-link" id="akpReset">Reset</button>
     </div>
   </div>
@@ -490,7 +493,7 @@
     });
   }
   function loadById(id){
-    if(!id){ mstatus("This item has no editable record."); return; }
+    if(!id || !/^[A-Za-z0-9_-]{20,}$/.test(String(id))){ mstatus("This poster was saved before reload support, so it can't be opened. New saves reload fully."); return; }
     mstatus("Loading…");
     jsonp({ action:"get", id:id }).then(function(res){
       if(res && res.status === "success" && res.record){ loadRecord(res.record); closeLoader(); }

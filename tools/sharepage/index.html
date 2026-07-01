@@ -511,20 +511,22 @@ html{font-size:110%;}
   --font:'Avenir Next','Avenir','Nunito Sans','Helvetica Neue','Segoe UI','Roboto';
   --cjk-sc:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC','Noto Sans CJK SC','Source Han Sans SC';
   --cjk-tc:'PingFang TC','Hiragino Sans CNS','Microsoft JhengHei','Noto Sans TC','Noto Sans CJK TC','Source Han Sans TC';
-  font-family:var(--font),var(--cjk-sc),sans-serif;color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;background:var(--bg);
+  font-family:var(--font),var(--cjk-sc),sans-serif;color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;background:var(--page);
 }
+.ackpage{--page:#ECECEC;padding:24px 14px 44px;}
 /* regional Han glyphs: follow the document language so 简/繁 render correctly */
 html[lang="zh-Hant"] .ackpage{font-family:var(--font),var(--cjk-tc),sans-serif;}
 html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 .ackpage *,.ackpage *::before,.ackpage *::after{box-sizing:border-box;}
+.ackpage .page-card{max-width:700px;margin:0 auto;background:var(--bg);border-radius:18px;overflow:hidden;box-shadow:0 14px 46px rgba(20,20,20,.13),0 2px 8px rgba(20,20,20,.06);}
 .ackpage .wrap{max-width:680px;margin:0 auto;background:var(--bg);}
 .ackpage .eyebrow{text-transform:uppercase;letter-spacing:.22em;font-size:.7rem;font-weight:600;}
 .ackpage .disp{text-transform:uppercase;letter-spacing:.17em;font-weight:300;line-height:1.2;}
 .ackpage .rule{border:0;border-top:1px solid var(--line-gold);margin:0;}
 
 /* language bar */
-.ackpage .langbar{position:sticky;top:0;z-index:30;display:flex;justify-content:flex-end;gap:2px;
-  padding:8px 16px;background:rgba(255,255,255,.92);backdrop-filter:saturate(1.4) blur(6px);border-bottom:1px solid var(--line);}
+.ackpage .langbar{position:relative;display:flex;justify-content:flex-end;gap:2px;
+  padding:9px 16px;background:#fff;border-bottom:1px solid var(--line);}
 .ackpage .langbar button{appearance:none;border:1px solid var(--line);background:#fff;color:var(--text2);
   font:inherit;font-size:.74rem;letter-spacing:.06em;padding:5px 12px;border-radius:3px;cursor:pointer;}
 .ackpage .langbar button.on{background:var(--burgundy);border-color:var(--burgundy);color:#fff;}
@@ -780,11 +782,12 @@ function buildPage(S){
   out.push('</head>');
   out.push('<body>');
   out.push('<div class="ackpage" id="ackpage">');
+  out.push('<div class="page-card">');
 
   /* language bar — only the selected languages; hidden entirely if just one */
   if(langs.length > 1){
     out.push('<div class="langbar">' + langs.map(function(l){
-      return '<button data-lang="'+l+'"'+(l===defLang?' class="on"':'')+' onclick="ackSet(\''+l+'\')">'+LANGBTN[l]+'</button>';
+      return '<button type="button" data-lang="'+l+'"'+(l===defLang?' class="on"':'')+'>'+LANGBTN[l]+'</button>';
     }).join('') + '</div>');
   }
 
@@ -975,6 +978,7 @@ function buildPage(S){
   out.push('<div class="contact">'+span(S.tx.ftAddr)+'</div>');
   out.push('<div class="copy">© '+(new Date().getFullYear())+' Acker Merrall &amp; Condit · '+esc(BRAND.estLine)+'</div>');
   out.push('</div></footer>');
+  out.push('</div>');/* /page-card */
 
   out.push('</div>');/* /ackpage */
 
@@ -991,6 +995,16 @@ function buildPage(S){
       +'var bs=document.querySelectorAll(".langbar button");'
       +'for(var j=0;j<bs.length;j++){bs[j].classList.toggle("on",bs[j].getAttribute("data-lang")===l);}'
       +'document.documentElement.lang=(l==="en"?"en":(l==="tc"?"zh-Hant":"zh-Hans"));}');
+    /* delegated binding — survives WordPress/HTML sanitizers that strip inline onclick */
+    out.push('document.addEventListener("click",function(e){'
+      +'var t=e.target;'
+      +'while(t){'
+        +'if(t===document)return;'
+        +'if(t.classList){if(t.classList.contains("langbar"))return;}'
+        +'if(t.getAttribute){var dl=t.getAttribute("data-lang");if(dl){ackSet(dl);return;}}'
+        +'t=t.parentNode;'
+      +'}'
+      +'});');
     out.push('<\/script>');
   }
 

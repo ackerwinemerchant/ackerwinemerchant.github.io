@@ -82,6 +82,14 @@
 .ackstudio input:focus,.ackstudio textarea:focus,.ackstudio select:focus{outline:none;border-color:var(--ack-burgundy);}
 .ackstudio input::placeholder,.ackstudio textarea::placeholder{color:var(--ack-faint);}
 .ackstudio .hint{font-size:.7rem;color:var(--ack-muted);margin-top:5px;letter-spacing:.01em;}
+.ackstudio .ackmodal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,10,16,.5);padding:20px;}
+.ackstudio .ackmodal-card{background:#fff;border-radius:14px;padding:22px 22px 18px;min-width:250px;max-width:92vw;
+  box-shadow:0 18px 50px rgba(0,0,0,.28);text-align:center;}
+.ackstudio .ackmodal-title{font-size:.9rem;font-weight:600;color:var(--ack-ink);margin-bottom:15px;letter-spacing:.02em;}
+.ackstudio .ackmodal-btns{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.ackstudio .ackmodal-btns .btn{width:100%;justify-content:center;}
+.ackstudio .ackmodal-cancel{width:100%;justify-content:center;margin-top:2px;}
 .ackstudio .langbadge{display:inline-block;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;
   color:var(--ack-burgundy);background:var(--ack-burgundy-wash);border-radius:3px;padding:1px 6px;margin-left:7px;vertical-align:1px;}
 
@@ -196,6 +204,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           Copy HTML
         </button>
+        <button class="btn btn-soft" id="btnCopyMsg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 20l1.4-4.2A8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg>
+          Copy share message
+        </button>
         <button class="btn btn-soft" id="btnClear">Clear fields</button>
         <span class="statusline" id="status"></span>
         <div class="devtabs" id="devTabs">
@@ -296,7 +308,9 @@ var ICONS = {
   location:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
   globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
   shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 7.7 7 9 4-1.3 7-4.6 7-9V6l-7-3Z"/><path d="m9.5 12 1.8 1.8 3.4-3.6"/></svg>',
-  leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V8"/><path d="M12 11C9.5 11 7.5 9.2 7.5 6.5 10 6.5 12 8.3 12 11Z"/><path d="M12 15c2.5 0 4.5-1.8 4.5-4.5C14 10.5 12 12.3 12 15Z"/><path d="M12 8c0-2.2 1.8-4 4-4 0 2.2-1.8 4-4 4Z"/></svg>'
+  leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V8"/><path d="M12 11C9.5 11 7.5 9.2 7.5 6.5 10 6.5 12 8.3 12 11Z"/><path d="M12 15c2.5 0 4.5-1.8 4.5-4.5C14 10.5 12 12.3 12 15Z"/><path d="M12 8c0-2.2 1.8-4 4-4 0 2.2-1.8 4-4 4Z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="m3.5 7 8.5 5.5L20.5 7"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 3.5H4.3A1.8 1.8 0 0 0 2.5 5.5 16.5 16.5 0 0 0 18.5 21.5 1.8 1.8 0 0 0 20.5 19.7v-2.3a1.2 1.2 0 0 0-1-1.18l-2.6-.5a1.2 1.2 0 0 0-1.16.44l-.9 1.1a13 13 0 0 1-5.6-5.6l1.1-.9a1.2 1.2 0 0 0 .44-1.16l-.5-2.6a1.2 1.2 0 0 0-1.18-1Z"/></svg>'
 };
 ICONS.grape = ICONS.grapes;   /* alias for older saved pages */
 var ICON_KEYS = ['bottle','glass','decanter','grapes','vine','barrel','cork','cellar','seal','tag','gavel','star','medal','clock','calendar','location','globe'];
@@ -374,7 +388,7 @@ var PRESETS = {
   /* ---------- TASTING ---------- */
   tasting:{
     heroStyle:'light', wineStyle:'menu', channel:'merchant', ctaUrl:'mailto:martin@ackerasia.com?subject=VIP%20Tasting%20%E2%80%94%2016%20July', offerCode:'',
-    heroImg:'', partnerLogo:'',
+    heroImg:'', partnerLogo:'', enqEmail:'martin@ackerasia.com', enqPhone:'+852 2525 0538',
     on:{partner:false,wines:true,highlights:false,agenda:false,hosts:false,about:true,offer:false,finalCta:true,app:true},
     tx:{
       badge:mk('By Invitation','誠邀蒞臨','诚邀莅临'),
@@ -391,7 +405,7 @@ var PRESETS = {
       agendaTitle:mk('',' ',' '),
       hostsTitle:mk('',' ',' '),
       aboutTitle:mk('Venue & Enquiries','場地及查詢','场地及查询'),
-      aboutBody:mk('The Last Drop Club\n3/F China Merchants Godown B, 18 Sai Ning Street, Kennedy Town, Hong Kong\n\nEnquiries: martin@ackerasia.com · +852 2525 0538','Last Drop Club\n香港堅尼地城西寧街18號 China Merchants Godown B 3樓\n\n查詢：martin@ackerasia.com · +852 2525 0538','Last Drop Club\n香港坚尼地城西宁街18号 China Merchants Godown B 3楼\n\n查询：martin@ackerasia.com · +852 2525 0538'),
+      aboutBody:mk('The Last Drop Club\n3/F China Merchants Godown B, 18 Sai Ning Street, Kennedy Town, Hong Kong','Last Drop Club\n香港堅尼地城西寧街18號 China Merchants Godown B 3樓','Last Drop Club\n香港坚尼地城西宁街18号 China Merchants Godown B 3楼'),
       offerTitle:mk('',' ',' '), offerBody:mk('',' ',' '), offerValid:mk('',' ',' '), offerTerms:mk('',' ',' '),
       finalLine:mk('Please confirm if you would like to join us, anytime from 5pm to 8pm.','敬請確認出席，歡迎於下午五時至八時間蒞臨。','敬请确认出席，欢迎于下午五时至八时间莅临。'),
       ftAddr:mk('Acker Merrall & Condit Asia · Hong Kong','Acker Merrall & Condit Asia · 香港','Acker Merrall & Condit Asia · 香港')
@@ -643,6 +657,10 @@ html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 
 /* about */
 .ackpage .about{max-width:34em;margin:0 auto;text-align:center;color:var(--text);font-size:1rem;}
+.ackpage .enqrow{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 26px;margin-top:18px;}
+.ackpage .enqitem{display:inline-flex;align-items:center;gap:9px;color:var(--burgundy);text-decoration:none;font-size:.98rem;letter-spacing:.01em;}
+.ackpage .enqitem svg{width:18px;height:18px;flex:0 0 auto;color:var(--gold);}
+.ackpage .enqitem:hover{text-decoration:underline;text-underline-offset:3px;}
 
 /* offer block */
 .ackpage .offer{max-width:520px;margin:0 auto;border:1px solid var(--line-gold);border-radius:4px;
@@ -936,8 +954,21 @@ function buildPage(S){
   }
 
   /* ---------- ABOUT ---------- */
-  if(S.on.about && (has(S.tx.aboutTitle) || has(S.tx.aboutBody))){
-    out.push('<section>'+secHead('', S.tx.aboutTitle)+'<p class="about">'+span(S.tx.aboutBody,'',true)+'</p></section>');
+  if(S.on.about && (has(S.tx.aboutTitle) || has(S.tx.aboutBody) || S.enqEmail || S.enqPhone)){
+    var ab = '<section>'+secHead('', S.tx.aboutTitle);
+    if(has(S.tx.aboutBody)) ab += '<p class="about">'+span(S.tx.aboutBody,'',true)+'</p>';
+    if(S.enqEmail || S.enqPhone){
+      ab += '<div class="enqrow">';
+      if(S.enqEmail){
+        ab += '<a class="enqitem" href="mailto:'+escAttr(S.enqEmail)+'">'+ICONS.mail+'<span>'+esc(S.enqEmail)+'</span></a>';
+      }
+      if(S.enqPhone){
+        ab += '<a class="enqitem" href="tel:'+escAttr(S.enqPhone.replace(/[^\d+]/g,''))+'">'+ICONS.phone+'<span>'+esc(S.enqPhone)+'</span></a>';
+      }
+      ab += '</div>';
+    }
+    ab += '</section>';
+    out.push(ab);
   }
 
   /* ---------- OFFER ---------- */
@@ -1165,6 +1196,9 @@ function renderForm(){
     +'<div class="acc-body">'
     + field('Section title','aboutTitle','tx','About the Auction')
     + area('Body','aboutBody','A short, heritage-confident paragraph.')
+    + field('Enquiry email','enqEmail','v','name@ackerwines.com')
+    + field('Enquiry phone','enqPhone','v','+852 0000 0000')
+    +'<p class="hint">Shown with mail &amp; phone icons as tappable links. Leave blank to hide.</p>'
     +'</div></details>';
 
   /* Offer */
@@ -1576,6 +1610,76 @@ async function doCopy(){
   try{ await navigator.clipboard.writeText(r.html); setStatus('HTML copied to clipboard.'); }
   catch(e){ setStatus('Copy blocked — use Download instead.'); }
 }
+
+/* ---- ready-to-send caption to paste next to the .html file ---- */
+function shareMessage(L){
+  L = L || ((S.langs && S.langs.length) ? S.langs[0] : 'en');
+  function g(k){ return (resolve(S.tx[k], L) || resolve(S.tx[k],'en') || '').replace(/\s*\n\s*/g,' ').trim(); }
+  /* emoji via \u escapes so the source file stays ASCII (brand linter stays clean) */
+  var E = { wine:'\u{1F377}', cal:'\u{1F4C5}', clock:'\u{1F552}', pin:'\u{1F4CD}', clip:'\u{1F4CE}' };
+  var OPEN = {
+    en:'Open the attached invitation for full details and to RSVP.',
+    tc:'請開啟附件邀請函查看完整詳情並回覆。',
+    sc:'请打开附件邀请函查看完整详情并回复。'
+  }[L] || 'Open the attached invitation for full details and to RSVP.';
+  var lines = [E.wine+' Acker Merrall & Condit · Since 1820'];
+  var eyebrow = g('badge'); if(eyebrow) lines.push(eyebrow);
+  var title = [g('hlLight'), g('hlBold')].filter(Boolean).join(' ');
+  if(title) lines.push(title);
+  var d=g('date'), t=g('time'), v=g('venue'), det=[];
+  if(d) det.push(E.cal+' '+d);
+  if(t) det.push(E.clock+' '+t);
+  if(v) det.push(E.pin+' '+v);
+  if(det.length){ lines.push(''); lines.push.apply(lines, det); }
+  lines.push('');
+  lines.push(E.clip+' '+OPEN);
+  return lines.join('\n');
+}
+async function copyMsgText(msg){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(msg);
+      setStatus('Share message copied — paste it with the file.');
+      return;
+    }
+  }catch(e){}
+  try{
+    var ta=document.createElement('textarea'); ta.value=msg;
+    ta.style.position='fixed'; ta.style.top='0'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    var ok=document.execCommand('copy'); document.body.removeChild(ta);
+    if(ok){ setStatus('Share message copied — paste it with the file.'); return; }
+  }catch(e){}
+  window.prompt('Copy this message:', msg);
+}
+function langLabel(l){ return l==='en' ? 'English' : (l==='tc' ? '繁體中文' : (l==='sc' ? '简体中文' : l)); }
+function closeCopyLangPopup(){ var m=document.getElementById('ackCopyLangModal'); if(m) m.remove(); }
+function showCopyLangPopup(langs){
+  closeCopyLangPopup();
+  var ov=document.createElement('div'); ov.className='ackmodal'; ov.id='ackCopyLangModal';
+  var card=document.createElement('div'); card.className='ackmodal-card';
+  var h=document.createElement('div'); h.className='ackmodal-title'; h.textContent='Copy share message in…';
+  card.appendChild(h);
+  var row=document.createElement('div'); row.className='ackmodal-btns';
+  langs.forEach(function(l){
+    var b=document.createElement('button'); b.className='btn'; b.textContent=langLabel(l);
+    b.addEventListener('click', function(){ closeCopyLangPopup(); copyMsgText(shareMessage(l)); });
+    row.appendChild(b);
+  });
+  card.appendChild(row);
+  var cancel=document.createElement('button'); cancel.className='btn btn-soft ackmodal-cancel';
+  cancel.textContent='Cancel'; cancel.addEventListener('click', closeCopyLangPopup);
+  card.appendChild(cancel);
+  ov.appendChild(card);
+  ov.addEventListener('click', function(e){ if(e.target===ov) closeCopyLangPopup(); });
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ closeCopyLangPopup(); document.removeEventListener('keydown', esc); } });
+  (document.getElementById('app')||document.body).appendChild(ov);
+}
+function copyShareMessage(){
+  var langs = (S.langs && S.langs.length) ? S.langs : ['en'];
+  if(langs.length <= 1){ copyMsgText(shareMessage(langs[0]||'en')); return; }
+  showCopyLangPopup(langs);
+}
 function doClear(){
   /* keep structure (type, heroStyle, toggles, footer/contact), blank campaign text & images */
   Object.keys(S.tx).forEach(function(k){
@@ -1660,6 +1764,7 @@ function init(){
   });
   document.getElementById('btnDownload').addEventListener('click', doDownload);
   document.getElementById('btnCopy').addEventListener('click', doCopy);
+  document.getElementById('btnCopyMsg').addEventListener('click', copyShareMessage);
   document.getElementById('btnClear').addEventListener('click', doClear);
 
   render();

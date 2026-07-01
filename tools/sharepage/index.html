@@ -522,6 +522,9 @@ html{font-size:110%;}
 /* regional Han glyphs: follow the document language so 简/繁 render correctly */
 html[lang="zh-Hant"] .ackpage{font-family:var(--font),var(--cjk-tc),sans-serif;}
 html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
+/* per-element language (works without JS, since each variant carries its own lang) */
+.ackpage :lang(zh-Hant){font-family:var(--font),var(--cjk-tc),sans-serif;}
+.ackpage :lang(zh-Hans){font-family:var(--font),var(--cjk-sc),sans-serif;}
 .ackpage *,.ackpage *::before,.ackpage *::after{box-sizing:border-box;}
 .ackpage .page-card{max-width:700px;margin:0 auto;background:var(--bg);border-radius:18px;overflow:hidden;box-shadow:0 14px 46px rgba(20,20,20,.13),0 2px 8px rgba(20,20,20,.06);}
 .ackpage .wrap{max-width:680px;margin:0 auto;background:var(--bg);}
@@ -529,12 +532,13 @@ html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 .ackpage .disp{text-transform:uppercase;letter-spacing:.17em;font-weight:300;line-height:1.2;}
 .ackpage .rule{border:0;border-top:1px solid var(--line-gold);margin:0;}
 
-/* language bar */
+/* language bar (pure-CSS switch) */
 .ackpage .langbar{position:relative;display:flex;justify-content:flex-end;gap:2px;
   padding:9px 16px;background:#fff;border-bottom:1px solid var(--line);}
-.ackpage .langbar button{appearance:none;border:1px solid var(--line);background:#fff;color:var(--text2);
-  font:inherit;font-size:.74rem;letter-spacing:.06em;padding:5px 12px;border-radius:3px;cursor:pointer;}
-.ackpage .langbar button.on{background:var(--burgundy);border-color:var(--burgundy);color:#fff;}
+.ackpage .langbtn{border:1px solid var(--line);background:#fff;color:var(--text2);
+  font-size:.74rem;letter-spacing:.06em;padding:5px 12px;border-radius:3px;cursor:pointer;user-select:none;-webkit-user-select:none;}
+.ackpage .langbtn:hover{border-color:var(--muted);}
+.ackpage .langradio{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);pointer-events:none;}
 
 /* hero */
 .ackpage .hero{text-align:center;position:relative;background-size:cover;background-position:center;}
@@ -713,20 +717,15 @@ function appBadges(){
 }
 
 function buildPage(S){
-  var reg = {en:{}, tc:{}, sc:{}};
-  var kc = 0;
-  /* register a translatable string under a fresh key; returns {key, html(EN initial)} */
-  function T(txObj, multiline){
-    var key = 'k'+(kc++);
-    ['en','tc','sc'].forEach(function(l){
-      var v = resolve(txObj, l);
-      reg[l][key] = multiline ? nl2br(esc(v)) : esc(v);
-    });
-    return { key:key, html:reg.en[key] };
-  }
+  /* CSS-only i18n: every selected language is emitted; CSS shows one (default always
+     visible even if a viewer ignores :checked, so nothing can render blank). */
   function span(txObj, cls, multiline){
-    var t = T(txObj, multiline);
-    return '<span class="'+(cls||'')+'" data-i18n="'+t.key+'">'+reg[defLang][t.key]+'</span>';
+    var inner = langs.map(function(l){
+      var v = resolve(txObj, l);
+      v = multiline ? nl2br(esc(v)) : esc(v);
+      return '<span class="l-'+l+'" lang="'+LANGCODE[l]+'">'+v+'</span>';
+    }).join('');
+    return '<span class="i18'+(cls?' '+cls:'')+'">'+inner+'</span>';
   }
   function has(txObj){ return !!(resolve(txObj,'en') || resolve(txObj,'tc') || resolve(txObj,'sc')); }
 
@@ -758,11 +757,8 @@ function buildPage(S){
   var hs = S.heroStyle || 'dark';
   var heroLogo = (hs==='light') ? LOGO_BLACK : LOGO_WHITE;   /* black on light, white on dark/wine */
 
-  /* ---- title (for <title> + document.title switch) ---- */
-  ['en','tc','sc'].forEach(function(l){
-    var b = resolve(S.tx.hlBold,l), bd = resolve(S.tx.badge,l);
-    reg[l]['__title'] = esc((b? b : (bd||'Acker')) + ' — Acker');
-  });
+  /* ---- page title (from the default language) ---- */
+  var pageTitle = esc((resolve(S.tx.hlBold,defLang) || resolve(S.tx.badge,defLang) || 'Acker') + ' — Acker');
 
   var out = [];
   out.push('<!DOCTYPE html>');
@@ -770,7 +766,7 @@ function buildPage(S){
   out.push('<head>');
   out.push('<meta charset="UTF-8">');
   out.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-  out.push('<title>'+reg[defLang]['__title']+'</title>');
+  out.push('<title>'+pageTitle+'</title>');
   out.push('<meta name="description" content="'+escAttr(resolve(S.tx.subhead,'en'))+'">');
   out.push('<meta property="og:type" content="website">');
   out.push('<meta property="og:site_name" content="Acker Merrall & Condit">');
@@ -787,12 +783,18 @@ function buildPage(S){
   out.push('</head>');
   out.push('<body>');
   out.push('<div class="ackpage" id="ackpage">');
+  /* language state — hidden radios BEFORE the card so CSS ~ can reach the content (no JS) */
+  if(langs.length > 1){
+    langs.forEach(function(l){
+      out.push('<input class="langradio" type="radio" name="acklang" id="acklang-'+l+'"'+(l===defLang?' checked':'')+'>');
+    });
+  }
   out.push('<div class="page-card">');
 
-  /* language bar — only the selected languages; hidden entirely if just one */
+  /* language bar — labels toggle the hidden radios; pure CSS, no JavaScript */
   if(langs.length > 1){
     out.push('<div class="langbar">' + langs.map(function(l){
-      return '<button type="button" data-lang="'+l+'"'+(l===defLang?' class="on"':'')+'>'+LANGBTN[l]+'</button>';
+      return '<label class="langbtn" for="acklang-'+l+'" data-lang="'+l+'">'+LANGBTN[l]+'</label>';
     }).join('') + '</div>');
   }
 
@@ -987,30 +989,19 @@ function buildPage(S){
 
   out.push('</div>');/* /ackpage */
 
-  /* ---------- i18n switcher script (only when >1 language; no backticks / no ${}) ---------- */
+  /* ---------- i18n: pure-CSS language switch (no JavaScript) ----------
+     Default language is shown by a plain rule (so it still renders even in a viewer
+     that ignores :checked); each radio, when checked, reveals only its language. */
   if(langs.length > 1){
-    var regOut = {};
-    langs.forEach(function(l){ regOut[l] = reg[l]; });
-    out.push('<script>');
-    out.push('var ACK_I18N='+JSON.stringify(regOut)+';var ACK_DEF="'+defLang+'";');
-    out.push('function ackSet(l){var d=ACK_I18N[l]||ACK_I18N[ACK_DEF];'
-      +'var ns=document.querySelectorAll("#ackpage [data-i18n]");'
-      +'for(var i=0;i<ns.length;i++){var k=ns[i].getAttribute("data-i18n");if(d[k]!=null)ns[i].innerHTML=d[k];}'
-      +'if(d.__title)document.title=d.__title;'
-      +'var bs=document.querySelectorAll(".langbar button");'
-      +'for(var j=0;j<bs.length;j++){bs[j].classList.toggle("on",bs[j].getAttribute("data-lang")===l);}'
-      +'document.documentElement.lang=(l==="en"?"en":(l==="tc"?"zh-Hant":"zh-Hans"));}');
-    /* delegated binding — survives WordPress/HTML sanitizers that strip inline onclick */
-    out.push('document.addEventListener("click",function(e){'
-      +'var t=e.target;'
-      +'while(t){'
-        +'if(t===document)return;'
-        +'if(t.classList){if(t.classList.contains("langbar"))return;}'
-        +'if(t.getAttribute){var dl=t.getAttribute("data-lang");if(dl){ackSet(dl);return;}}'
-        +'t=t.parentNode;'
-      +'}'
-      +'});');
-    out.push('<\/script>');
+    var css = [];
+    css.push('#ackpage .l-en,#ackpage .l-tc,#ackpage .l-sc{display:none;}');
+    css.push('#ackpage .l-'+defLang+'{display:inline;}');
+    langs.forEach(function(l){
+      css.push('#acklang-'+l+':checked ~ .page-card .l-en,#acklang-'+l+':checked ~ .page-card .l-tc,#acklang-'+l+':checked ~ .page-card .l-sc{display:none;}');
+      css.push('#acklang-'+l+':checked ~ .page-card .l-'+l+'{display:inline;}');
+      css.push('#acklang-'+l+':checked ~ .page-card .langbar label[for="acklang-'+l+'"]{background:var(--burgundy);border-color:var(--burgundy);color:#fff;}');
+    });
+    out.push('<style>'+css.join('')+'</style>');
   }
 
   out.push('</body></html>');

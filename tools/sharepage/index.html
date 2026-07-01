@@ -149,7 +149,7 @@
 .ackstudio .frame-shell{background:#fff;border-radius:6px;box-shadow:0 8px 34px rgba(33,33,33,.16);overflow:hidden;
   width:100%;max-width:1180px;transition:max-width .2s;align-self:flex-start;}
 .ackstudio .frame-shell.mobile{max-width:392px;border-radius:22px;box-shadow:0 10px 40px rgba(33,33,33,.22);}
-.ackstudio iframe{width:100%;height:74vh;border:0;display:block;background:#fff;}
+.ackstudio iframe{width:100%;height:74vh;border:0;display:block;background:#ECECEC;}
 .ackstudio .frame-shell.mobile iframe{height:720px;}
 
 .ackstudio .sharecard{margin:0 16px 16px;background:var(--ack-gold-wash);border:1px solid var(--ack-line-gold);
@@ -387,7 +387,7 @@ var PRESETS = {
 
   /* ---------- TASTING ---------- */
   tasting:{
-    heroStyle:'light', wineStyle:'menu', channel:'merchant', ctaUrl:'mailto:martin@ackerasia.com?subject=VIP%20Tasting%20%E2%80%94%2016%20July', offerCode:'',
+    heroStyle:'light', wineStyle:'menu', channel:'merchant', ctaUrl:'martin@ackerasia.com', offerCode:'',
     heroImg:'', partnerLogo:'', enqEmail:'martin@ackerasia.com', enqPhone:'+852 2525 0538',
     on:{partner:false,wines:true,highlights:false,agenda:false,hosts:false,about:true,offer:false,finalCta:true,app:true},
     tx:{
@@ -426,7 +426,7 @@ var PRESETS = {
 
   /* ---------- RELEASE / EN PRIMEUR ---------- */
   offer:{
-    heroStyle:'light', wineStyle:'cards', channel:'merchant', ctaUrl:'mailto:asia@ackerwines.com?subject=En%20Primeur%20Allocation', offerCode:'MEMBER2025',
+    heroStyle:'light', wineStyle:'cards', channel:'merchant', ctaUrl:'asia@ackerwines.com', offerCode:'MEMBER2025',
     heroImg:'', partnerLogo:'',
     on:{partner:false,wines:true,highlights:true,agenda:false,hosts:false,about:false,offer:true,finalCta:true,app:true},
     tx:{
@@ -754,24 +754,43 @@ function buildPage(S){
   function emailish(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v||'').trim()); }
   function ctaAttrs(){
     var raw = String(S.ctaUrl||'').trim();
-    if(emailish(raw)){
-      var base  = resolve(S.tx.badge, defLang) || resolve(S.tx.hlBold, defLang)
-                || resolve(S.tx.badge,'en')   || resolve(S.tx.hlBold,'en') || 'Enquiry';
+    /* accept a bare email OR a full "mailto:addr?subject=...&body=..." link.
+       Pull out the address + any pre-supplied subject/body so we never stack a
+       second mailto: or a second ?subject= onto it. */
+    var addr = raw, exSubj = '', exBody = '';
+    var mm = raw.match(/^mailto:([^?]*)(?:\?(.*))?$/i);
+    if(mm){
+      addr = mm[1].trim();
+      try{ addr = decodeURIComponent(addr); }catch(e){}
+      if(mm[2]){
+        mm[2].split('&').forEach(function(p){
+          var i = p.indexOf('='); if(i < 0) return;
+          var k = p.slice(0,i).toLowerCase(), val = p.slice(i+1);
+          try{ val = decodeURIComponent(val.replace(/\+/g,' ')); }catch(e){}
+          if(k === 'subject') exSubj = val;
+          else if(k === 'body') exBody = val;
+        });
+      }
+    }
+    if(emailish(addr)){
+      var base  = resolve(S.tx.hlBold, defLang) || resolve(S.tx.badge, defLang)
+                || resolve(S.tx.hlBold,'en')    || resolve(S.tx.badge,'en') || 'Enquiry';
       var title = resolve(S.tx.hlBold, defLang) || resolve(S.tx.badge, defLang)
                 || resolve(S.tx.hlBold,'en')    || 'this event';
       var dt    = resolve(S.tx.date, defLang) || resolve(S.tx.date,'en') || '';
-      var subj  = dt ? (base + ' \u2014 ' + dt) : base;
+      var subj  = exSubj || (dt ? (base + ' \u2014 ' + dt) : base);
       /* friendly, editable template so the sender has something to start from */
       var when  = dt ? ' (' + dt + ')' : '';
       var body;
-      if(defLang === 'tc'){
+      if(exBody){ body = exBody; }
+      else if(defLang === 'tc'){
         body = '您好，\r\n\r\n我想查詢有關「' + title + '」' + when + '的詳情。\r\n\r\n姓名：\r\n聯絡電話：\r\n人數：\r\n\r\n謝謝。';
       } else if(defLang === 'sc'){
         body = '您好，\r\n\r\n我想查询有关「' + title + '」' + when + '的详情。\r\n\r\n姓名：\r\n联系电话：\r\n人数：\r\n\r\n谢谢。';
       } else {
         body = 'Hello,\r\n\r\nI would like to enquire about ' + title + when + '.\r\n\r\nName:\r\nContact number:\r\nNumber of guests:\r\n\r\nThank you.';
       }
-      var mailto = 'mailto:' + raw + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
+      var mailto = 'mailto:' + addr + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
       return ' href="'+escAttr(mailto)+'"';
     }
     return ' href="'+escAttr(raw)+'" target="_blank" rel="noopener"';
@@ -1581,10 +1600,18 @@ async function embedRemote(html){
    RENDER / PREVIEW
 ============================================================================ */
 var renderTimer=null;
-function schedule(){ clearTimeout(renderTimer); renderTimer=setTimeout(render,140); }
+function schedule(){ clearTimeout(renderTimer); renderTimer=setTimeout(render,160); }
 function render(){
-  var html = buildPage(S);
-  document.getElementById('frame').srcdoc = html;
+  var frame = document.getElementById('frame');
+  /* keep the preview where the user was looking — don't snap back to the top */
+  var sx = 0, sy = 0;
+  try{ var w = frame.contentWindow; if(w){ sx = w.scrollX || 0; sy = w.scrollY || 0; } }catch(e){}
+  var restore = function(){
+    frame.removeEventListener('load', restore);
+    if(sx || sy){ try{ frame.contentWindow.scrollTo(sx, sy); }catch(e){} }
+  };
+  frame.addEventListener('load', restore);
+  frame.srcdoc = buildPage(S);
 }
 
 /* ============================================================================

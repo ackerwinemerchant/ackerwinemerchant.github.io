@@ -196,6 +196,10 @@
     <!-- ===================== PREVIEW ===================== -->
     <div class="panel preview">
       <div class="pvbar">
+        <button class="btn" id="btnShare">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14.5V3.5m0 0 3.6 3.6M12 3.5 8.4 7.1"/><path d="M5 12.5V19a1.6 1.6 0 0 0 1.6 1.6h10.8A1.6 1.6 0 0 0 19 19v-6.5"/></svg>
+          Share
+        </button>
         <button class="btn" id="btnDownload">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
           Download page
@@ -736,9 +740,13 @@ function appBadges(){
   return out;
 }
 
-function buildPage(S){
+function buildPage(S, opts){
   /* CSS-only i18n: every selected language is emitted; CSS shows one (default always
-     visible even if a viewer ignores :checked, so nothing can render blank). */
+     visible even if a viewer ignores :checked, so nothing can render blank).
+     opts.viewLang (studio preview only) overrides which language is shown first, so the
+     canvas follows the language being edited. opts.preview injects a tiny script that
+     tells the studio when a language is clicked in the canvas. Exports pass no opts. */
+  opts = opts || {};
   function span(txObj, cls, multiline){
     var inner = langs.map(function(l){
       var v = resolve(txObj, l);
@@ -805,6 +813,9 @@ function buildPage(S){
     : ALL3.slice();
   if(!langs.length) langs = ['en'];
   var defLang = langs[0];
+  /* language shown first: in the studio preview this follows the edited language;
+     for exports it's the page default (langs[0]). */
+  var shown = (opts.viewLang && langs.indexOf(opts.viewLang) > -1) ? opts.viewLang : defLang;
 
   var hs = S.heroStyle || 'dark';
   var heroLogo = (hs==='light') ? LOGO_BLACK : LOGO_WHITE;   /* black on light, white on dark/wine */
@@ -838,7 +849,7 @@ function buildPage(S){
   /* language state — hidden radios BEFORE the card so CSS ~ can reach the content (no JS) */
   if(langs.length > 1){
     langs.forEach(function(l){
-      out.push('<input class="langradio" type="radio" name="acklang" id="acklang-'+l+'"'+(l===defLang?' checked':'')+'>');
+      out.push('<input class="langradio" type="radio" name="acklang" id="acklang-'+l+'"'+(l===shown?' checked':'')+'>');
     });
   }
   out.push('<div class="page-card">');
@@ -1060,13 +1071,19 @@ function buildPage(S){
   if(langs.length > 1){
     var css = [];
     css.push('#ackpage .l-en,#ackpage .l-tc,#ackpage .l-sc{display:none;}');
-    css.push('#ackpage .l-'+defLang+'{display:inline;}');
+    css.push('#ackpage .l-'+shown+'{display:inline;}');
     langs.forEach(function(l){
       css.push('#acklang-'+l+':checked ~ .page-card .l-en,#acklang-'+l+':checked ~ .page-card .l-tc,#acklang-'+l+':checked ~ .page-card .l-sc{display:none;}');
       css.push('#acklang-'+l+':checked ~ .page-card .l-'+l+'{display:inline;}');
       css.push('#acklang-'+l+':checked ~ .page-card .langbar label[for="acklang-'+l+'"]{background:var(--burgundy);border-color:var(--burgundy);color:#fff;}');
     });
     out.push('<style>'+css.join('')+'</style>');
+  }
+
+  /* studio preview only: when a language is chosen in the canvas, tell the studio
+     so the editing language + form follow along. Never emitted in exports. */
+  if(opts.preview && langs.length > 1){
+    out.push('<script>(function(){document.addEventListener("change",function(e){var t=e.target;if(t){if(t.name==="acklang"){try{parent.postMessage({ackLang:String(t.id).replace("acklang-","")},"*");}catch(x){}}}});})();<\/script>');
   }
 
   out.push('</body></html>');
@@ -1611,7 +1628,7 @@ function render(){
     if(sx || sy){ try{ frame.contentWindow.scrollTo(sx, sy); }catch(e){} }
   };
   frame.addEventListener('load', restore);
-  frame.srcdoc = buildPage(S);
+  frame.srcdoc = buildPage(S, { viewLang: curLang, preview: true });
 }
 
 /* ============================================================================
@@ -1681,16 +1698,17 @@ async function copyMsgText(msg){
 }
 function langLabel(l){ return l==='en' ? 'English' : (l==='tc' ? '繁體中文' : (l==='sc' ? '简体中文' : l)); }
 function closeCopyLangPopup(){ var m=document.getElementById('ackCopyLangModal'); if(m) m.remove(); }
-function showCopyLangPopup(langs){
+/* generic language chooser: title + one callback per picked language */
+function showLangPopup(title, langs, onPick){
   closeCopyLangPopup();
   var ov=document.createElement('div'); ov.className='ackmodal'; ov.id='ackCopyLangModal';
   var card=document.createElement('div'); card.className='ackmodal-card';
-  var h=document.createElement('div'); h.className='ackmodal-title'; h.textContent='Copy share message in…';
+  var h=document.createElement('div'); h.className='ackmodal-title'; h.textContent=title;
   card.appendChild(h);
   var row=document.createElement('div'); row.className='ackmodal-btns';
   langs.forEach(function(l){
     var b=document.createElement('button'); b.className='btn'; b.textContent=langLabel(l);
-    b.addEventListener('click', function(){ closeCopyLangPopup(); copyMsgText(shareMessage(l)); });
+    b.addEventListener('click', function(){ closeCopyLangPopup(); onPick(l); });
     row.appendChild(b);
   });
   card.appendChild(row);
@@ -1705,7 +1723,53 @@ function showCopyLangPopup(langs){
 function copyShareMessage(){
   var langs = (S.langs && S.langs.length) ? S.langs : ['en'];
   if(langs.length <= 1){ copyMsgText(shareMessage(langs[0]||'en')); return; }
-  showCopyLangPopup(langs);
+  showLangPopup('Copy share message in…', langs, function(l){ copyMsgText(shareMessage(l)); });
+}
+
+/* ---- one-tap Share: builds the .html + caption, hands both to the native
+   share sheet on phones; on desktop (no file-share support) it downloads the
+   file and copies the caption so nothing is lost. ---- */
+function shareFilename(L){
+  var n = resolve(S.tx.hlBold, L) || resolve(S.tx.badge, L) || resolve(S.tx.hlBold,'en') || S.name || 'invitation';
+  n = n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'invitation';
+  return 'acker-' + n + '.html';
+}
+function downloadHtmlFile(html, fname){
+  var blob = new Blob([html], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+async function doShare(L){
+  setStatus('Preparing the invitation…');
+  var built = await embedRemote(buildPage(S));   /* self-contained file */
+  var html = built.html;
+  var caption = shareMessage(L);
+  var fname = shareFilename(L);
+  var title = resolve(S.tx.hlBold, L) || resolve(S.tx.badge, L) || 'Acker invitation';
+  /* try the native share sheet with the file attached (works on phones) */
+  var file = null;
+  try{ file = new File([html], fname, {type:'text/html'}); }catch(e){}
+  try{
+    if(file && navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({ files:[file], text:caption, title:title });
+      setStatus('Opened the share sheet — pick WhatsApp, Mail, or any app.');
+      return;
+    }
+  }catch(e){
+    if(e && e.name==='AbortError'){ setStatus(''); return; }   /* user closed the sheet */
+    /* otherwise fall through to the desktop fallback */
+  }
+  /* desktop / unsupported: download the file + copy the caption */
+  downloadHtmlFile(html, fname);
+  await copyMsgText(caption);
+  setStatus('Saved the file and copied the message — attach the .html and paste the message in WhatsApp or email.');
+}
+function shareInvitation(){
+  var langs = (S.langs && S.langs.length) ? S.langs : ['en'];
+  if(langs.length <= 1){ doShare(langs[0]||'en'); return; }
+  showLangPopup('Share invitation in…', langs, doShare);
 }
 function doClear(){
   /* keep structure (type, heroStyle, toggles, footer/contact), blank campaign text & images */
@@ -1765,7 +1829,7 @@ function setLang(l){
   });
   var fm = document.getElementById('form');
   if(fm) fm.setAttribute('lang', l==='en'?'en':(l==='tc'?'zh-Hant':'zh-Hans'));
-  syncForm(); renderAllRows();
+  syncForm(); renderAllRows(); render();   /* canvas follows the chosen language */
 }
 function setDev(d){
   curDev = d;
@@ -1789,10 +1853,20 @@ function init(){
   document.querySelectorAll('#devTabs button').forEach(function(b){
     b.addEventListener('click', function(){ setDev(b.getAttribute('data-dev')); });
   });
+  document.getElementById('btnShare').addEventListener('click', shareInvitation);
   document.getElementById('btnDownload').addEventListener('click', doDownload);
   document.getElementById('btnCopy').addEventListener('click', doCopy);
   document.getElementById('btnCopyMsg').addEventListener('click', copyShareMessage);
   document.getElementById('btnClear').addEventListener('click', doClear);
+
+  /* canvas -> studio: a language chosen inside the preview switches the editing language */
+  window.addEventListener('message', function(e){
+    var d = e.data, ALL = ['en','tc','sc'];
+    if(!d || ALL.indexOf(d.ackLang) < 0) return;
+    if(d.ackLang === curLang) return;
+    if(S.langs && S.langs.indexOf(d.ackLang) < 0) return;
+    setLang(d.ackLang);
+  });
 
   render();
   if(BRAND.backendUrl) cloudList();

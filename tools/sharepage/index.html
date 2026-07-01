@@ -78,6 +78,7 @@
   width:100%;font:inherit;font-size:.86rem;color:var(--ack-ink);background:var(--ack-bg);
   border:1px solid var(--ack-line);border-radius:var(--ack-radius);padding:9px 11px;transition:border-color .15s;}
 .ackstudio textarea{min-height:74px;resize:vertical;line-height:1.55;}
+.ackstudio textarea.fld-line{min-height:38px;resize:none;overflow:hidden;line-height:1.5;white-space:pre-wrap;}
 .ackstudio input:focus,.ackstudio textarea:focus,.ackstudio select:focus{outline:none;border-color:var(--ack-burgundy);}
 .ackstudio input::placeholder,.ackstudio textarea::placeholder{color:var(--ack-faint);}
 .ackstudio .hint{font-size:.7rem;color:var(--ack-muted);margin-top:5px;letter-spacing:.01em;}
@@ -555,7 +556,7 @@ html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 .ackpage .hero .cobrand span{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .ackpage .hero .hero-photo{margin:36px auto 6px;max-width:100%;border-radius:16px;overflow:hidden;line-height:0;box-shadow:0 18px 44px rgba(20,20,20,.14);}
 .ackpage .hero .hero-photo img{width:100%;height:auto;display:block;}
-.ackpage .hero .hero-photo.lg{margin-top:40px;border-radius:18px;}
+.ackpage .hero .hero-photo.lg{margin-top:42px;margin-left:-20px;margin-right:-20px;width:calc(100% + 40px);max-width:none;border-radius:16px;}
 .ackpage .hero.dark .hero-photo,.ackpage .hero.wine .hero-photo{box-shadow:0 18px 44px rgba(0,0,0,.4);}
 /* hero variants */
 .ackpage .hero.light{background:var(--bg);color:var(--ink);}
@@ -596,7 +597,7 @@ html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 /* wines / lots list */
 .ackpage .wine{display:flex;gap:16px;padding:20px 0;border-bottom:1px solid var(--line);}
 .ackpage .wine:last-child{border-bottom:0;}
-.ackpage .wine .ph{flex:0 0 64px;width:64px;height:84px;object-fit:cover;border-radius:2px;background:var(--grey);border:1px solid var(--line);}
+.ackpage .wine .ph{flex:0 0 88px;width:88px;height:116px;object-fit:cover;border-radius:10px;background:var(--grey);border:1px solid var(--line);}
 .ackpage .wine .body{flex:1;min-width:0;}
 .ackpage .wine .wn{font-size:1.02rem;font-weight:600;color:var(--ink);}
 .ackpage .wine .wd{font-size:.82rem;color:var(--text2);margin-top:3px;letter-spacing:.02em;}
@@ -614,7 +615,8 @@ html[lang="zh-Hans"] .ackpage{font-family:var(--font),var(--cjk-sc),sans-serif;}
 .ackpage .wm-group{text-align:center;}
 .ackpage .wm-group+.wm-group{margin-top:30px;}
 .ackpage .wm-producer{color:#fff;font-weight:600;font-size:1.05rem;letter-spacing:.04em;margin-bottom:14px;}
-.ackpage .wm-wine{color:var(--on-dark);font-size:.96rem;line-height:1.5;padding:5px 0;}
+.ackpage .wm-wine{color:var(--on-dark);font-size:.96rem;line-height:1.5;padding:11px 8px;}
+.ackpage .wm-wine + .wm-wine{border-top:1px solid rgba(190,173,133,.24);}
 .ackpage .wm-wine .wm-detail{display:block;color:var(--on-dark2);font-size:.8rem;letter-spacing:.02em;margin-top:1px;}
 
 /* highlights grid */
@@ -722,7 +724,7 @@ function buildPage(S){
   function span(txObj, cls, multiline){
     var inner = langs.map(function(l){
       var v = resolve(txObj, l);
-      v = multiline ? nl2br(esc(v)) : esc(v);
+      v = nl2br(esc(v));   /* every field honours line breaks */
       return '<span class="l-'+l+'" lang="'+LANGCODE[l]+'">'+v+'</span>';
     }).join('');
     return '<span class="i18'+(cls?' '+cls:'')+'">'+inner+'</span>';
@@ -735,11 +737,24 @@ function buildPage(S){
   function ctaAttrs(){
     var raw = String(S.ctaUrl||'').trim();
     if(emailish(raw)){
-      var base = resolve(S.tx.badge, defLang) || resolve(S.tx.hlBold, defLang)
-               || resolve(S.tx.badge,'en')   || resolve(S.tx.hlBold,'en') || 'Enquiry';
-      var dt   = resolve(S.tx.date, defLang) || resolve(S.tx.date,'en') || '';
-      var subj = dt ? (base + ' \u2014 ' + dt) : base;     /* em-dash between title & date */
-      return ' href="'+escAttr('mailto:'+raw+'?subject='+encodeURIComponent(subj))+'"';
+      var base  = resolve(S.tx.badge, defLang) || resolve(S.tx.hlBold, defLang)
+                || resolve(S.tx.badge,'en')   || resolve(S.tx.hlBold,'en') || 'Enquiry';
+      var title = resolve(S.tx.hlBold, defLang) || resolve(S.tx.badge, defLang)
+                || resolve(S.tx.hlBold,'en')    || 'this event';
+      var dt    = resolve(S.tx.date, defLang) || resolve(S.tx.date,'en') || '';
+      var subj  = dt ? (base + ' \u2014 ' + dt) : base;
+      /* friendly, editable template so the sender has something to start from */
+      var when  = dt ? ' (' + dt + ')' : '';
+      var body;
+      if(defLang === 'tc'){
+        body = '您好，\r\n\r\n我想查詢有關「' + title + '」' + when + '的詳情。\r\n\r\n姓名：\r\n聯絡電話：\r\n人數：\r\n\r\n謝謝。';
+      } else if(defLang === 'sc'){
+        body = '您好，\r\n\r\n我想查询有关「' + title + '」' + when + '的详情。\r\n\r\n姓名：\r\n联系电话：\r\n人数：\r\n\r\n谢谢。';
+      } else {
+        body = 'Hello,\r\n\r\nI would like to enquire about ' + title + when + '.\r\n\r\nName:\r\nContact number:\r\nNumber of guests:\r\n\r\nThank you.';
+      }
+      var mailto = 'mailto:' + raw + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
+      return ' href="'+escAttr(mailto)+'"';
     }
     return ' href="'+escAttr(raw)+'" target="_blank" rel="noopener"';
   }
@@ -837,7 +852,7 @@ function buildPage(S){
   if(S.ctaUrl && has(S.tx.ctaLabel)){
     out.push('<a class="cta"'+ctaAttrs()+'>'+span(S.tx.ctaLabel)+'</a>');
   }
-  if(S.heroImg) out.push('<div class="hero-photo'+(S.type==='offer'?' lg':'')+'"><img src="'+escAttr(driveThumb(S.heroImg))+'" alt=""></div>');
+  if(S.heroImg) out.push('<div class="hero-photo'+((S.type==='offer'||S.type==='auction')?' lg':'')+'"><img src="'+escAttr(driveThumb(S.heroImg))+'" alt=""></div>');
   out.push('</div>');/* /hero-inner */
   out.push('</div>');/* /hero */
 
@@ -1012,11 +1027,10 @@ function buildPage(S){
    FORM — static accordions bound to state; repeatable rows rendered dynamically
 ============================================================================ */
 function field(label, key, kind, ph){
-  /* kind: tx | v ; translatable fields carry data-tx, plain carry data-v */
+  /* kind: tx | v ; translatable fields carry data-tx, plain carry data-v.
+     Rendered as a 1-row auto-growing textarea so any field can break to a new line. */
   var attr = (kind==='tx') ? 'data-tx="'+key+'"' : 'data-v="'+key+'"';
-  var input = (kind==='tx')
-    ? '<input type="text" '+attr+' placeholder="'+escAttr(ph||'')+'">'
-    : '<input type="text" '+attr+' placeholder="'+escAttr(ph||'')+'">';
+  var input = '<textarea class="fld-line" rows="1" '+attr+' placeholder="'+escAttr(ph||'')+'"></textarea>';
   var badge = (kind==='tx') ? '<span class="langbadge" data-langbadge>EN</span>' : '';
   return '<div class="fld"><label>'+esc(label)+badge+'</label>'+input+'</div>';
 }
@@ -1040,8 +1054,33 @@ function renderForm(){
   var f = document.getElementById('form');
   var h = '';
 
+  /* Backup & cloud — kept at the top for quick save/restore */
+  /* Cloud — save & reload (only when a backend is configured) */
+  if(BRAND.backendUrl){
+    h += '<details class="acc">'+secSummary('Cloud \u2014 save & reload','cellar',null)
+      +'<div class="acc-body">'
+      +'<button class="btn" id="btnCloudSave">Save to cloud</button> '
+      +'<button class="btn btn-soft" id="btnCloudRefresh">Refresh list</button>'
+      +'<div class="fld" style="margin-top:12px"><label>Reload a saved page</label>'
+        +'<div class="imgfield"><select id="cloudSel"><option value="">\u2014 saved pages \u2014</option></select>'
+        +'<button class="btn btn-ghost btn-up" id="btnCloudLoad">Load</button></div></div>'
+      +'<div class="hint">Saved pages live in your Google Sheet (all three languages). Uploaded images are stored in your Drive folder and baked into the file on download.</div>'
+      +'</div></details>';
+  }
+
+  /* Backup */
+  h += '<details class="acc">'+secSummary('Export / import a backup','medal',null)
+    +'<div class="acc-body">'
+    +'<button class="btn btn-soft" id="btnExport">Download backup (.json)</button> '
+    +'<button class="btn btn-soft" id="btnImport">Import backup</button>'
+    +'<input type="file" id="importFile" accept="application/json" style="display:none">'
+    +'<div class="hint">Saves everything you have typed (all three languages) so you can reload it later.</div>'
+    +'</div></details>';
+
+
+
   /* Page & sharing */
-  h += '<details class="acc" open>'+secSummary('Page & sharing','gavel',null)
+  h += '<details class="acc">'+secSummary('Page & sharing','gavel',null)
     +'<div class="acc-body">'
     + field('Internal name (for your records)','name','v','Autumn Auction 2025')
     + '<div class="fld"><label>Languages shown on the page</label>'
@@ -1061,7 +1100,7 @@ function renderForm(){
     +'</div></details>';
 
   /* Hero */
-  h += '<details class="acc" open>'+secSummary('Hero','star',null)
+  h += '<details class="acc">'+secSummary('Hero','star',null)
     +'<div class="acc-body">'
     + field('Eyebrow / badge','badge','tx','Fine & Rare Wine Auction')
     + '<div class="row2">'+ field('Headline — light line','hlLight','tx','The Hong Kong')
@@ -1071,7 +1110,7 @@ function renderForm(){
     +'</div></details>';
 
   /* Key details */
-  h += '<details class="acc" open>'+secSummary('Key details','clock',null)
+  h += '<details class="acc">'+secSummary('Key details','clock',null)
     +'<div class="acc-body">'
     + field('Date','date','tx','Saturday, 18 October 2025')
     + field('Time','time','tx','Live from 11:00 AM HKT')
@@ -1155,28 +1194,6 @@ function renderForm(){
     +'<div class="hint">All social accounts (Facebook, both Instagram &amp; both RedNote) and the newsletter + app links are fixed brand details shown on every page.</div>'
     +'</div></details>';
 
-  /* Cloud — save & reload (only when a backend is configured) */
-  if(BRAND.backendUrl){
-    h += '<details class="acc">'+secSummary('Cloud \u2014 save & reload','cellar',null)
-      +'<div class="acc-body">'
-      +'<button class="btn" id="btnCloudSave">Save to cloud</button> '
-      +'<button class="btn btn-soft" id="btnCloudRefresh">Refresh list</button>'
-      +'<div class="fld" style="margin-top:12px"><label>Reload a saved page</label>'
-        +'<div class="imgfield"><select id="cloudSel"><option value="">\u2014 saved pages \u2014</option></select>'
-        +'<button class="btn btn-ghost btn-up" id="btnCloudLoad">Load</button></div></div>'
-      +'<div class="hint">Saved pages live in your Google Sheet (all three languages). Uploaded images are stored in your Drive folder and baked into the file on download.</div>'
-      +'</div></details>';
-  }
-
-  /* Backup */
-  h += '<details class="acc">'+secSummary('Export / import a backup','medal',null)
-    +'<div class="acc-body">'
-    +'<button class="btn btn-soft" id="btnExport">Download backup (.json)</button> '
-    +'<button class="btn btn-soft" id="btnImport">Import backup</button>'
-    +'<input type="file" id="importFile" accept="application/json" style="display:none">'
-    +'<div class="hint">Saves everything you have typed (all three languages) so you can reload it later.</div>'
-    +'</div></details>';
-
   f.innerHTML = h;
   wireForm();
   renderAllRows();
@@ -1184,8 +1201,22 @@ function renderForm(){
 }
 
 /* ---- bind static fields ---- */
+function autoGrow(el){
+  if(!el || el.tagName!=='TEXTAREA') return;
+  el.style.height = 'auto';
+  var h = el.scrollHeight;
+  if(h > 0) el.style.height = h + 'px';   /* h==0 when hidden (collapsed section) */
+}
 function wireForm(){
   var f = document.getElementById('form');
+
+  /* auto-grow any textarea as the user types, and when its section is expanded */
+  f.addEventListener('input', function(e){ if(e.target && e.target.tagName==='TEXTAREA') autoGrow(e.target); });
+  f.querySelectorAll('details.acc').forEach(function(d){
+    d.addEventListener('toggle', function(){
+      if(d.open) d.querySelectorAll('textarea').forEach(autoGrow);
+    });
+  });
 
   f.querySelectorAll('[data-tx]').forEach(function(el){
     el.addEventListener('input', function(){
@@ -1275,6 +1306,7 @@ function syncForm(){
       b.classList.toggle('on', lgs.indexOf(b.getAttribute('data-lp'))>-1);
     });
   }
+  f.querySelectorAll('textarea').forEach(autoGrow);   /* fit height to content */
 }
 
 /* ============================================================================
@@ -1294,9 +1326,9 @@ function rowInput(list, i, fieldKey, kind, ph){
   var v;
   if(kind==='tx'){ v = cur(S[list][i][fieldKey]); }
   else { v = S[list][i][fieldKey]||''; }
-  return '<input type="text" value="'+escAttr(v)+'" '
+  return '<textarea class="fld-line" rows="1" '
     +'data-rl="'+list+'" data-ri="'+i+'" data-rf="'+fieldKey+'" data-rk="'+kind+'" '
-    +'placeholder="'+escAttr(ph||'')+'">';
+    +'placeholder="'+escAttr(ph||'')+'">'+esc(v)+'</textarea>';
 }
 function renderRows(list){
   var box = document.querySelector('[data-list="'+list+'"]');

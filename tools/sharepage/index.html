@@ -298,6 +298,14 @@ var ICON_KEYS = ['bottle','glass','decanter','grapes','vine','barrel','cork','ce
 /* ============ small helpers ============ */
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escAttr(s){ return esc(s).replace(/'/g,'&#39;'); }
+/* Google Drive "uc?export=view" links don't render inside <img>; the thumbnail
+   endpoint does. Normalise any Drive URL (old or new) to an embeddable form. */
+function driveThumb(u){
+  u = String(u||'');
+  var m = u.match(/https?:\/\/(?:drive|docs)\.google\.com\/[^"'\s]*?(?:[?&]id=|\/d\/)([A-Za-z0-9_-]{20,})/);
+  if(m && m[1]) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w2000';
+  return u;
+}
 function nl2br(s){ return String(s==null?'':s).replace(/\n/g,'<br>'); }
 function mk(en,tc,sc){ return {en:en||'',tc:tc||'',sc:sc||''}; }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -762,7 +770,7 @@ function buildPage(S){
   out.push('<meta property="og:title" content="'+escAttr(resolve(S.tx.hlBold,'en'))+'">');
   out.push('<meta property="og:description" content="'+escAttr(resolve(S.tx.subhead,'en'))+'">');
   if(S.heroImg){
-    out.push('<meta property="og:image" content="'+escAttr(S.heroImg)+'">');
+    out.push('<meta property="og:image" content="'+escAttr(driveThumb(S.heroImg))+'">');
     out.push('<meta property="og:image:width" content="1200">');
     out.push('<meta property="og:image:height" content="630">');
   }
@@ -810,7 +818,7 @@ function buildPage(S){
   /* co-brand */
   if(S.on.partner && (S.partnerLogo || has(S.tx.partnerName))){
     out.push('<div class="cobrand"><span>'+esc(BRAND.name)+'</span><span>×</span>');
-    if(S.partnerLogo) out.push('<img src="'+escAttr(S.partnerLogo)+'" alt="partner">');
+    if(S.partnerLogo) out.push('<img src="'+escAttr(driveThumb(S.partnerLogo))+'" alt="partner">');
     else out.push(span(S.tx.partnerName));
     out.push('</div>');
   }
@@ -819,7 +827,7 @@ function buildPage(S){
   if(S.ctaUrl && has(S.tx.ctaLabel)){
     out.push('<a class="cta"'+ctaAttrs()+'>'+span(S.tx.ctaLabel)+'</a>');
   }
-  if(S.heroImg) out.push('<div class="hero-photo'+(S.type==='offer'?' lg':'')+'"><img src="'+escAttr(S.heroImg)+'" alt=""></div>');
+  if(S.heroImg) out.push('<div class="hero-photo'+(S.type==='offer'?' lg':'')+'"><img src="'+escAttr(driveThumb(S.heroImg))+'" alt=""></div>');
   out.push('</div>');/* /hero-inner */
   out.push('</div>');/* /hero */
 
@@ -858,7 +866,7 @@ function buildPage(S){
       out.push('<section>'+secHead('Fine & Rare', S.tx.winesTitle)+'<div class="wines">');
       S.wines.forEach(function(w){
         out.push('<div class="wine">');
-        if(w.img) out.push('<img class="ph" src="'+escAttr(w.img)+'" alt="">');
+        if(w.img) out.push('<img class="ph" src="'+escAttr(driveThumb(w.img))+'" alt="">');
         out.push('<div class="body">');
         out.push('<div class="wn">'+span(w.name)+'</div>');
         if(has(w.detail)) out.push('<div class="wd">'+span(w.detail)+'</div>');
@@ -896,7 +904,7 @@ function buildPage(S){
     out.push('<section>'+secHead('', S.tx.hostsTitle)+'<div class="hosts">');
     S.hosts.forEach(function(p){
       out.push('<div class="host">');
-      out.push(p.photo ? '<img src="'+escAttr(p.photo)+'" alt="">' : '<div class="ph"></div>');
+      out.push(p.photo ? '<img src="'+escAttr(driveThumb(p.photo))+'" alt="">' : '<div class="ph"></div>');
       out.push('<div class="hn">'+span(p.name)+'</div><div class="ht">'+span(p.title)+'</div></div>');
     });
     out.push('</div></section>');

@@ -582,7 +582,7 @@
     renderPoster().then(function(img){
       return fetch(CONFIG.ENDPOINT, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(gather(img)), redirect:"follow" });
     }).then(function(r){ return r.json(); })
-      .then(function(j){ if(j&&j.status==="success"){ if(j.recordId) currentRecordId=j.recordId; var m=j.updated?"Updated":"Saved"; setStatus(m+".","ok"); toast(m+" ✓","ok"); } else { setStatus("Server error: "+(j&&j.message?j.message:"unknown"),"err"); toast("Save failed","err"); } })
+      .then(function(j){ if(j&&j.status==="success"){ if(j.recordId) currentRecordId = j.recordId; var m=j.updated?"Updated":"Saved"; setStatus(m+".","ok"); toast(m+" ✓","ok"); refreshGallery(); } else { setStatus("Server error: "+(j&&j.message?j.message:"unknown"),"err"); toast("Save failed","err"); } })
       .catch(function(e){ setStatus("Save failed: "+e,"err"); toast("Save failed","err"); });
   });
   $("akpReset").addEventListener("click", function(){ if(confirm("Reset everything?")) location.reload(); });
@@ -611,17 +611,53 @@
     });
   }
   function mstatus(t){ $("akpModalStatus").textContent = t || ""; }
-  function openLoader(q){
+  var GKEY = "akp_gallery_v1";
+  var galleryRows = null;      // full list held in memory
+  var galleryBusy = false;
+  function readGalleryCache(){
+    try{ var raw=localStorage.getItem(GKEY); if(raw){ var o=JSON.parse(raw); if(o && o.rows) return o.rows; } }catch(e){}
+    return null;
+  }
+  function writeGalleryCache(rows){
+    galleryRows = rows||[];
+    try{ localStorage.setItem(GKEY, JSON.stringify({rows:galleryRows, ts:Date.now()})); }catch(e){}
+  }
+  function filterRows(rows, q){
+    q = (q||"").trim().toLowerCase();
+    if(!q) return rows;
+    return rows.filter(function(r){
+      return (String(r.name||"").toLowerCase().indexOf(q) >= 0) ||
+             (String(r.price||"").toLowerCase().indexOf(q) >= 0);
+    });
+  }
+  function showRows(q, updating){
+    var rows = filterRows(galleryRows||[], q);
+    if(!rows.length){ $("akpModalGrid").innerHTML=""; mstatus(q ? "No matches for “"+q+"”." : "No saved posters yet."); return; }
+    mstatus(rows.length + (rows.length===1?" poster":" posters") + " · swipe to browse, tap Load." + (updating?" · updating…":""));
+    renderList(rows);
+  }
+  function refreshGallery(cb){
+    if(galleryBusy){ return; }
+    galleryBusy = true;
+    jsonp({ action:"list", q:"" }).then(function(res){
+      galleryBusy = false;
+      if(res && res.status === "success"){ writeGalleryCache(res.rows||[]); if(cb) cb(true); }
+      else if(cb) cb(false, res && res.message);
+    }).catch(function(err){ galleryBusy = false; if(cb) cb(false, err.message); });
+  }
+  function openLoader(){
     $("akpModal").classList.remove("akp-hide");
-    $("akpModalGrid").innerHTML = "";
-    mstatus("Loading…");
-    jsonp({ action:"list", q:q||"" }).then(function(res){
-      if(res && res.status === "success"){
-        if(!res.rows.length){ mstatus(q ? "No matches for “"+q+"”." : "No saved posters yet."); return; }
-        mstatus(res.count + (res.count===1?" poster":" posters") + " · swipe to browse, tap Load.");
-        renderList(res.rows);
-      } else { mstatus("Couldn't load: " + (res && res.message ? res.message : "error")); }
-    }).catch(function(err){ mstatus("Couldn't load: " + err.message); });
+    var q = $("akpSearch").value || "";
+    if(galleryRows == null) galleryRows = readGalleryCache();
+    if(galleryRows && galleryRows.length){
+      showRows(q, true);                       // instant paint from cache
+    } else {
+      $("akpModalGrid").innerHTML = ""; mstatus("Loading…");
+    }
+    refreshGallery(function(ok, msg){          // freshen in the background
+      if(ok){ showRows($("akpSearch").value || ""); }
+      else if(!(galleryRows && galleryRows.length)){ mstatus("Couldn't load: " + (msg||"error")); }
+    });
   }
   function closeLoader(){ $("akpModal").classList.add("akp-hide"); }
   var TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
@@ -629,7 +665,7 @@
     var grid = $("akpModalGrid"); grid.innerHTML = "";
     rows.forEach(function(r){
       var card = document.createElement("div"); card.className = "akp-pcard";
-      var thumb = r.posterId ? ("https://drive.google.com/thumbnail?id="+r.posterId+"&sz=w400") : "";
+      var thumb = r.posterId ? ("https://drive.google.com/thumbnail?id="+r.posterId+"&sz=w320") : "";
       var date = r.ts ? new Date(r.ts).toLocaleDateString() : "";
       var sub  = (r.variant === "noprice") ? "No price" : (r.price || "");
       var langLabel = r.lang==="tc" ? "繁體+EN" : (r.lang==="en" ? "English" : "简体+EN");
@@ -666,6 +702,7 @@
       if(res && res.status === "success"){
         if(card && card.parentNode) card.parentNode.removeChild(card);
         if(currentRecordId === id) currentRecordId = "";
+        if(galleryRows){ galleryRows = galleryRows.filter(function(r){ return r.recordId !== id; }); writeGalleryCache(galleryRows); }
         mstatus("Deleted.");
       } else { mstatus("Couldn't delete: " + (res && res.message ? res.message : "error")); }
     }).catch(function(err){ mstatus("Couldn't delete: " + err.message); });
@@ -700,11 +737,10 @@
     applyLang(r.lang||"sc", true);
     refreshFooter();
   }
-  $("akpLoad").addEventListener("click", function(){ $("akpSearch").value=""; openLoader(""); });
+  $("akpLoad").addEventListener("click", function(){ $("akpSearch").value=""; openLoader(); });
   $("akpModalClose").addEventListener("click", closeLoader);
   $("akpModal").addEventListener("click", function(e){ if(e.target === this) closeLoader(); });
-  var searchTimer;
-  $("akpSearch").addEventListener("input", function(){ var q=this.value; clearTimeout(searchTimer); searchTimer=setTimeout(function(){ openLoader(q); }, 320); });
+  $("akpSearch").addEventListener("input", function(){ showRows(this.value || ""); });
   $("akpBackendNote").textContent = "Cloud save is connected to your Apps Script.";
   setVintage(val("akpVintage"));
   setIf("pName", val("akpName"));

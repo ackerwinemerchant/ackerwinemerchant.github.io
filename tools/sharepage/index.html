@@ -102,6 +102,11 @@
 .ackstudio .btn-ghost:hover{background:var(--ack-burgundy-wash);}
 .ackstudio .btn-soft{background:var(--ack-fill);color:var(--ack-ink);border:1px solid var(--ack-line);}
 .ackstudio .btn-soft:hover{background:var(--ack-grey);border-color:var(--ack-faint);}
+.ackstudio .btn:disabled,.ackstudio .btn.busy{cursor:progress;opacity:.85;}
+.ackstudio .btn:disabled:hover{background:var(--ack-burgundy);}
+.ackstudio .spin{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;animation:ackspin .7s linear infinite;display:inline-block;flex:0 0 auto;}
+@keyframes ackspin{to{transform:rotate(360deg);}}
 
 /* repeatable rows */
 .ackstudio .rows{display:flex;flex-direction:column;gap:11px;}
@@ -1396,6 +1401,11 @@ async function cloudSave(){
   if(!BRAND.backendUrl){ setStatus('No backend configured.'); return; }
   ensureId();
   var name = S.name || resolve(S.tx.hlBold,'en') || 'Untitled';
+  var btn = document.getElementById('btnCloudSave');
+  var orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.classList.add('busy'); btn.innerHTML = '<span class="spin"></span>Saving\u2026'; }
+  var others = [document.getElementById('btnCloudRefresh'), document.getElementById('btnCloudLoad')];
+  others.forEach(function(b){ if(b) b.disabled = true; });
   setStatus('Saving to cloud\u2026');
   try{
     await postNoCors(BRAND.backendUrl, {action:'save', id:S.id, name:name, type:curType,
@@ -1403,6 +1413,10 @@ async function cloudSave(){
     setStatus('Saved to cloud.');
     setTimeout(cloudList, 600);
   }catch(e){ setStatus('Save failed \u2014 check the backend URL.'); }
+  finally{
+    if(btn){ btn.disabled = false; btn.classList.remove('busy'); btn.innerHTML = orig; }
+    others.forEach(function(b){ if(b) b.disabled = false; });
+  }
 }
 async function cloudList(){
   if(!BRAND.backendUrl) return;
